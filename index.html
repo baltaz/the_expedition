@@ -312,6 +312,43 @@
   closeInfo.onclick = function(){ infoOverlay.style.display='none'; };
   overlay.addEventListener('click', function(e){ if(e.target === overlay && overlay.style.display !== 'none' && restartBtn.style.display==='none'){ start(); } });
 
+  // ---- Mobile controls (left 50% of screen) ----
+  var tStartX=0, tStartY=0, tStartT=0, tInZone=false;
+  var SWIPE_DIST=40, SWIPE_TIME=600; // px, ms
+  var TAP_DIST=10, TAP_TIME=300;     // px, ms
+  function inLeftZone(x){ return x < (innerWidth*0.5); }
+  function holdKey(key, ms){ keys[key]=true; setTimeout(()=>{ keys[key]=false; }, ms|0); }
+  function simulateTap(){ if(!state||!state.run) return; if(state.inputLock===0){ if(!player.h){ fire(); } else if(player.h.phase==='out'){ player.h.phase='return'; } } }
+
+  window.addEventListener('touchstart', function(ev){
+    if(!ev.touches || !ev.touches.length) return;
+    var t=ev.touches[0]; tStartX=t.clientX; tStartY=t.clientY; tStartT=performance.now(); tInZone=inLeftZone(tStartX);
+    if(tInZone) ev.preventDefault();
+  }, {passive:false});
+
+  window.addEventListener('touchmove', function(ev){
+    if(!tInZone) return; // only left half
+    ev.preventDefault();
+  }, {passive:false});
+
+  window.addEventListener('touchend', function(ev){
+    if(!tInZone) return; tInZone=false;
+    var tEnd=performance.now(); var dt=tEnd - tStartT;
+    var touch=(ev.changedTouches&&ev.changedTouches[0]) || null; var ex = touch?touch.clientX:tStartX; var ey = touch?touch.clientY:tStartY;
+    var dx=ex - tStartX, dy=ey - tStartY; var adx=Math.abs(dx), ady=Math.abs(dy);
+    // Swipe detection (vertical only)
+    if(dt<=SWIPE_TIME && ady>=SWIPE_DIST && ady>adx){
+      if(dy < 0){ // up
+        holdKey('ArrowUp', 250);
+      } else {    // down
+        holdKey('ArrowDown', 250);
+      }
+      return;
+    }
+    // Tap
+    if(dt<=TAP_TIME && adx<TAP_DIST && ady<TAP_DIST){ simulateTap(); return; }
+  }, {passive:false});
+
   // ========= Init =========
   function autoSize(){ cvs.width=innerWidth; cvs.height=innerHeight; bgCanvas.width=innerWidth; bgCanvas.height=innerHeight; }
   autoSize(); addEventListener('resize', autoSize);
