@@ -253,8 +253,18 @@
       state.lightTimer=0; state.lightToggles=0;
     }
     var up=!!keys['ArrowUp'], down=!!keys['ArrowDown'];
-    player.vy=up?-400:down?400:0; player.y=clamp(player.y+(player.vy*dt/H),0.1,0.9);
-    robotTiltTarget = up ? -MAX_TILT : (down ? MAX_TILT : 0);
+    if(dragActive){
+      // Follow finger vertically with logarithmic easing
+      var targetYpx = clamp(dragY, H*0.1, H*0.9);
+      var dy = targetYpx - (player.y*H);
+      var speed = Math.sign(dy) * (450 * Math.log(1 + Math.abs(dy)/24)); // px/s
+      player.y = clamp(player.y + (speed*dt)/H, 0.1, 0.9);
+      robotTiltTarget = dy < -4 ? -MAX_TILT : (dy>4 ? MAX_TILT : 0);
+    } else {
+      player.vy = up?-400:down?400:0;
+      player.y = clamp(player.y + (player.vy*dt/H), 0.1, 0.9);
+      robotTiltTarget = up ? -MAX_TILT : (down ? MAX_TILT : 0);
+    }
     robotTilt += (robotTiltTarget - robotTilt) * Math.min(1, 8*dt);
     if(keys[' ']&&state.inputLock===0){ if(!player.h){ fire(); } else if(player.h.phase==='out'){ player.h.phase='return'; } keys[' ']=false; }
     for(var i=animals.length-1;i>=0;i--){ var a=animals[i]; a.x+=a.vx*dt; a.frameTimer+=dt; if(a.frameTimer>=0.2){ a.frameTimer-=0.2; a.frame^=1; } if(!a.captured && a.x<-a.r){ animals.splice(i,1); var before=state.lives; if(state.lives>0) state.lives--; if(state.lives<before){ state.lifeAnim=0.6; S.play('lose'); } if(state.lives<=0) end(); } }
@@ -312,41 +322,44 @@
   closeInfo.onclick = function(){ infoOverlay.style.display='none'; };
   overlay.addEventListener('click', function(e){ if(e.target === overlay && overlay.style.display !== 'none' && restartBtn.style.display==='none'){ start(); } });
 
-  // ---- Mobile controls (left 50% of screen) ----
-  var tStartX=0, tStartY=0, tStartT=0, tInZone=false;
-  var SWIPE_DIST=40, SWIPE_TIME=600; // px, ms
+  // ---- Mobile controls (drag on left 50%; tap anywhere) ----
+  var tStartX=0, tStartY=0, tStartT=0;
+  var dragId=-1, dragActive=false, dragY=0, dragInZone=false;
+  var SWIPE_DIST=40, SWIPE_TIME=600; // px, ms (kept for legacy; now we track drag)
   var TAP_DIST=10, TAP_TIME=300;     // px, ms
   function inLeftZone(x){ return x < (innerWidth*0.5); }
-  function holdKey(key, ms){ keys[key]=true; setTimeout(()=>{ keys[key]=false; }, ms|0); }
   function simulateTap(){ if(!state||!state.run) return; if(state.inputLock===0){ if(!player.h){ fire(); } else if(player.h.phase==='out'){ player.h.phase='return'; } } }
 
   window.addEventListener('touchstart', function(ev){
     if(!ev.touches || !ev.touches.length) return;
-    var t=ev.touches[0]; tStartX=t.clientX; tStartY=t.clientY; tStartT=performance.now(); tInZone=inLeftZone(tStartX);
-    if(tInZone) ev.preventDefault();
+    var t=ev.changedTouches[0];
+    tStartX=t.clientX; tStartY=t.clientY; tStartT=performance.now();
+    // Start drag only if in left zone
+    if(inLeftZone(tStartX)){
+      dragId=t.identifier; dragActive=true; dragY=t.clientY; dragInZone=true; ev.preventDefault();
+    } else { dragInZone=false; }
   }, {passive:false});
 
   window.addEventListener('touchmove', function(ev){
-    if(!tInZone) return; // only left half
-    ev.preventDefault();
+    if(!dragActive) return;
+    for(var i=0;i<ev.changedTouches.length;i++){
+      var t=ev.changedTouches[i];
+      if(t.identifier===dragId){ dragY=t.clientY; if(dragInZone) ev.preventDefault(); break; }
+    }
   }, {passive:false});
 
   window.addEventListener('touchend', function(ev){
-    if(!tInZone) return; tInZone=false;
-    var tEnd=performance.now(); var dt=tEnd - tStartT;
+    // detect tap ANYWHERE on screen
+    var tEnd=performance.now(); var dtTap=tEnd - tStartT;
     var touch=(ev.changedTouches&&ev.changedTouches[0]) || null; var ex = touch?touch.clientX:tStartX; var ey = touch?touch.clientY:tStartY;
-    var dx=ex - tStartX, dy=ey - tStartY; var adx=Math.abs(dx), ady=Math.abs(dy);
-    // Swipe detection (vertical only)
-    if(dt<=SWIPE_TIME && ady>=SWIPE_DIST && ady>adx){
-      if(dy < 0){ // up
-        holdKey('ArrowUp', 250);
-      } else {    // down
-        holdKey('ArrowDown', 250);
-      }
-      return;
+    var adx=Math.abs(ex - tStartX), ady=Math.abs(ey - tStartY);
+    if(dtTap<=TAP_TIME && adx<TAP_DIST && ady<TAP_DIST){ simulateTap(); }
+
+    // stop drag if our finger left
+    for(var i=0;i<ev.changedTouches.length;i++){
+      var t=ev.changedTouches[i];
+      if(t.identifier===dragId){ dragActive=false; dragId=-1; dragInZone=false; break; }
     }
-    // Tap
-    if(dt<=TAP_TIME && adx<TAP_DIST && ady<TAP_DIST){ simulateTap(); return; }
   }, {passive:false});
 
   // ========= Init =========
