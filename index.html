@@ -20,20 +20,22 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     html, body { margin:0; height:100%; background:#06131f; font-family: 'Press Start 2P', monospace; overflow:hidden; }
+    /* Layers: bg(0) -> game(1) -> fx darkness mask (2) -> HUD text (3) -> UI buttons (5+) -> modals (7) */
     #bgCanvas { position: fixed; inset:0; width:100vw; height:100vh; z-index:0; display:block; }
-    #canvas   { position: fixed; inset:0; width:100vw; height:100vh; z-index:1; display:block; }
-    #darkOverlay { position: fixed; inset:0; background: rgba(0,0,0,0); z-index:3; pointer-events: none; }
+    #gameCanvas{ position: fixed; inset:0; width:100vw; height:100vh; z-index:1; display:block; }
+    #fxCanvas  { position: fixed; inset:0; width:100vw; height:100vh; z-index:2; display:block; pointer-events:none; }
+    #hudCanvas { position: fixed; inset:0; width:100vw; height:100vh; z-index:3; display:block; pointer-events:none; }
 
-    #ui { position: fixed; top: 12px; left: 12px; right:12px; display:flex; justify-content:center; align-items:center; color:#e9f3ff; text-shadow:0 2px 8px rgba(0,0,0,.6); user-select:none; gap:12px; font-size: 16px; z-index: 4; }
+    #ui { position: fixed; top: 12px; left: 12px; right:12px; display:flex; justify-content:center; align-items:center; color:#e9f3ff; text-shadow:0 2px 8px rgba(0,0,0,.6); user-select:none; gap:12px; font-size: 16px; z-index: 5; }
     .keycap { display:inline-block; padding:6px 14px; background:#cfe9ff; color:#062030; border:2px solid #7ecbff; box-shadow: inset -4px -4px 0 #003b8e, inset 4px 4px 0 #7ecbff; image-rendering: pixelated; letter-spacing:1px; }
 
-    #overlay { position: fixed; inset:0; display:grid; place-items:center; background: radial-gradient(ellipse at center, rgba(0,0,0,.75), rgba(0,0,0,.95)); color:#e9f3ff; text-align:center; image-rendering: pixelated; z-index: 6; }
+    #overlay { position: fixed; inset:0; display:grid; place-items:center; background: radial-gradient(ellipse at center, rgba(0,0,0,.75), rgba(0,0,0,.95)); color:#e9f3ff; text-align:center; image-rendering: pixelated; z-index: 7; }
     #overlay .card { background:#001830; border:2px solid #7ecbff; box-shadow: inset -6px -6px 0 #003b8e, inset 6px 6px 0 #7ecbff; text-transform: uppercase; letter-spacing:.5px; padding:24px 28px; max-width:520px; }
 
     .pxbtn{ background:#2ad1ff; color:#062030; border:2px solid #7ecbff; padding:12px 18px; cursor:pointer; box-shadow: inset -4px -4px 0 #003b8e, inset 4px 4px 0 #7ecbff; font-weight:bold; text-transform: uppercase; letter-spacing:.5px; font-size: 16px; }
     .pxbtn:active{ transform: translateY(1px); }
 
-    #ui-topright { position:fixed; top:12px; right:12px; display:flex; gap:6px; align-items:center; z-index:5; }
+    #ui-topright { position:fixed; top:12px; right:12px; display:flex; gap:6px; align-items:center; z-index:6; }
     .spritebtn { width:56px; height:56px; padding:0; border:none; background:transparent; cursor:pointer; image-rendering: pixelated; display:inline-flex; align-items:center; justify-content:center; }
     .spritebtn img{ width:100%; height:100%; display:block; image-rendering: pixelated; }
     .spritebtn:active { transform: translateY(1px); }
@@ -42,7 +44,7 @@
     #infoOverlay .card { background:#001830; border:2px solid #7ecbff; box-shadow: inset -6px -6px 0 #003b8e, inset 6px 6px 0 #7ecbff; text-transform: uppercase; letter-spacing:.5px; padding:24px 28px; max-width:520px; }
 
     /* Logo HUD */
-    #ui-topleft{ position:fixed; top:12px; left:12px; z-index:5; }
+    #ui-topleft{ position:fixed; top:12px; left:12px; z-index:6; }
     #logoHUD{ height:56px; image-rendering: pixelated; display:block; cursor:pointer; }
     @media (pointer: coarse), (max-width: 820px) { #logoHUD{ height:48px; } }
 
@@ -57,8 +59,9 @@
 </head>
 <body>
   <canvas id="bgCanvas"></canvas>
-  <canvas id="canvas"></canvas>
-  <div id="darkOverlay"></div>
+  <canvas id="gameCanvas"></canvas>
+  <canvas id="fxCanvas"></canvas>
+  <canvas id="hudCanvas"></canvas>
 
   <div id="ui-topleft">
     <img id="logoHUD" alt="La Expedición" src="https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/logo.png" />
@@ -121,9 +124,13 @@
   // ========= Refs =========
   const bgCanvas = document.getElementById('bgCanvas');
   const bgCtx = bgCanvas.getContext('2d');
-  const cvs = document.getElementById('canvas');
+  const cvs = document.getElementById('gameCanvas');
   const ctx = cvs.getContext('2d');
-  const darkOverlay = document.getElementById('darkOverlay');
+  const fxCanvas = document.getElementById('fxCanvas');
+  const fx = fxCanvas.getContext('2d');
+  const hudCanvas = document.getElementById('hudCanvas');
+  const hud = hudCanvas.getContext('2d');
+
   const overlay = document.getElementById('overlay');
   const startBtn = document.getElementById('start');
   const restartBtn = document.getElementById('restart');
@@ -143,12 +150,10 @@
   const mainExtras = document.getElementById('mainExtras');
   const recordLine = document.getElementById('recordLine');
   const shareBtn   = document.getElementById('shareBtn');
-  const donateBtn  = document.getElementById('donateBtn');
 
   // ========= UI Sprites =========
   const KEY_SPRITE_URL = 'https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/keyboard.png';
   const BTN_SPRITE_URL = 'https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/ui-buttons.png';
-  let keySprite=null, btnSprite=null;
   let keyUpURL=null, keyDownURL=null, keySpaceURL=null;
   let icoMuteURL=null, icoInfoURL=null, icoFSURL=null;
 
@@ -159,46 +164,30 @@
     c2.drawImage(img, x0, 0, w, h, 0, 0, w, h);
     return c.toDataURL('image/png');
   }
+  function loadImage(url, cb){ const im=new Image(); im.crossOrigin='anonymous'; im.onload=()=>cb(im); im.onerror=()=>cb(null); im.src=url; }
 
   loadImage(KEY_SPRITE_URL, function(img){
-    if(!img){ console.warn('keyboard sprite no disponible'); return; }
-    keySprite=img;
-    // Rangos provistos: 1..28 (UP), 29..80 (SPACE), 81..fin (DOWN)
+    if(!img) return;
     keyUpURL    = cropToDataURL(img, 1, 28);
     keySpaceURL = cropToDataURL(img, 29, 80);
     keyDownURL  = cropToDataURL(img, 81, img.width-1);
     refreshHint();
   });
-
   loadImage(BTN_SPRITE_URL, function(img){
-    if(!img){ console.warn('ui-buttons sprite no disponible, dejo SVG fallback'); refreshIcons(); return; }
-    btnSprite=img;
-    // Recortar sprite para eliminar el 4º botón (>=140px)
-    var trimmedW = Math.min(140, img.width);
-    var c = document.createElement('canvas'); c.width = trimmedW; c.height = img.height;
-    var cctx = c.getContext('2d'); cctx.imageSmoothingEnabled=false; cctx.drawImage(img, 0, 0, trimmedW, img.height, 0, 0, trimmedW, img.height);
-    // Sub-secciones exactas: 0..48 (mute), 49..93 (info), 94..139 (fullscreen)
-    function cropFromCanvas(x0, x1){
-      var w = Math.max(1, (x1 - x0 + 1)|0), h = c.height|0;
-      var cs = document.createElement('canvas'); cs.width=w; cs.height=h;
-      var cx = cs.getContext('2d'); cx.imageSmoothingEnabled=false;
-      cx.drawImage(c, x0, 0, w, h, 0, 0, w, h);
-      return cs.toDataURL('image/png');
-    }
-    icoMuteURL = cropFromCanvas(0, 48);
-    icoInfoURL = cropFromCanvas(49, 93);
-    icoFSURL   = cropFromCanvas(94, 139);
+    if(!img){ refreshIcons(); return; }
+    // Cortamos por X y ancho exactos (evita off-by-one)
+    var h = img.height;
+    function slice(x,w){ const c=document.createElement('canvas'); c.width=w; c.height=h; const cx=c.getContext('2d'); cx.imageSmoothingEnabled=false; cx.drawImage(img, x, 0, w, h, 0, 0, w, h); return c.toDataURL('image/png'); }
+    // Posiciones provistas: 0, 49, 94. Anchos: 49, 45, 46.
+    icoMuteURL = slice(0,49);
+    icoInfoURL = slice(49,45);
+    icoFSURL   = slice(94,46);
     refreshIcons();
   });
 
-  function refreshHint(){
-    const hint = document.getElementById('hint'); if(!hint) return;
-    if(keyUpURL && keyDownURL && keySpaceURL){
-      hint.innerHTML = "MOVER: <img alt='up' style='height:22px;image-rendering:pixelated' src='"+keyUpURL+"'/>/"+
+  function refreshHint(){ const hint=document.getElementById('hint'); if(!hint || !keyUpURL) return; hint.innerHTML = "MOVER: <img alt='up' style='height:22px;image-rendering:pixelated' src='"+keyUpURL+"'/>/"+
                        "<img alt='down' style='height:22px;image-rendering:pixelated' src='"+keyDownURL+"'/> | "+
-                       "CAPTURAR: <img alt='space' style='height:22px;image-rendering:pixelated' src='"+keySpaceURL+"'/>";
-    }
-  }
+                       "CAPTURAR: <img alt='space' style='height:22px;image-rendering:pixelated' src='"+keySpaceURL+"'/>"; }
 
   // ========= Icons (fallback SVG if sprites missing) =========
   const iconSpeakerOn  = svgBtn("<path d='M-9,-8 h6 l8,-6 v28 l-8,-6 h-6 z' fill='#0b214b'/>"+
@@ -209,16 +198,13 @@
                                 "<path d='M14,-10 L6,8' stroke='#0b214b' stroke-width='4' stroke-linecap='round'/>");
   const iconInfo       = svgBtn("<circle r='10' fill='#0b214b'/>"+
                                 "<text x='0' y='6' text-anchor='middle' font-family='monospace' font-size='20' fill='#5aa4ff'>?</text>");
-
   function refreshIcons(){
-    // Try sprite first; if not available, use SVG fallbacks
-    if(icoMuteURL){ muteBtn.innerHTML = '<img alt="mute" src="'+ (S.isMuted()?icoMuteURL:icoMuteURL) +'" />'; }
-    else          { muteBtn.innerHTML = '<img alt="mute" src="'+ (S.isMuted()?iconSpeakerOff:iconSpeakerOn) +'" />'; }
-    if(icoInfoURL){ infoBtn.innerHTML = '<img alt="info" src="'+ icoInfoURL +'" />'; }
-    else          { infoBtn.innerHTML = '<img alt="info" src="'+ iconInfo +'" />'; }
-    if(icoFSURL){ fsBtn.innerHTML = '<img alt="fullscreen" src="'+ icoFSURL +'" />'; }
-    // visual state for mute transparency only when muted
-    muteBtn.style.opacity = S.isMuted() ? 0.35 : 1;
+    const muteBtn=document.getElementById('muteBtn'); const infoBtn=document.getElementById('infoBtn'); const fsBtn=document.getElementById('fsBtn');
+    // Usamos el mismo icono para mute on/off y variamos opacidad cuando está silenciado
+    muteBtn.innerHTML = '<img alt="mute" style="image-rendering:pixelated" src="'+(icoMuteURL|| (S.isMuted()?iconSpeakerOff:iconSpeakerOn))+'" />';
+    infoBtn.innerHTML = '<img alt="info" style="image-rendering:pixelated" src="'+(icoInfoURL||iconInfo)+'" />';
+    if(icoFSURL) fsBtn.innerHTML = '<img alt="fullscreen" style="image-rendering:pixelated" src="'+icoFSURL+'" />';
+    muteBtn.style.opacity = S.isMuted()?0.35:1;
   }
 
   // ========= Audio =========
@@ -235,115 +221,48 @@
     function setMuted(m){ for(var k in a){ try{ a[k].muted=!!m; }catch(e){} } _muted=!!m; }
     function isMuted(){ return _muted; }
     function toggleMuted(){ setMuted(!isMuted()); }
-    return { init:init, play:play, loop:loop, stop:stop, pause:pause, setMuted:setMuted, isMuted:isMuted, toggleMuted:toggleMuted };
+    function time(k){ var el=a[k]; return el ? (el.currentTime||0) : 0; }
+    return { init:init, play:play, loop:loop, stop:stop, pause:pause, setMuted:setMuted, isMuted:isMuted, toggleMuted:toggleMuted, time:time };
   })();
 
-  // ========= High Score (localStorage) =========
-  const HS_KEY = 'expedicion_hiscore_v1';
-  let highScore = 0;
-  function loadHighScore(){
-    try { const v = localStorage.getItem(HS_KEY); highScore = v ? (parseInt(v,10)||0) : 0; }
-    catch(e){ highScore = 0; }
-  }
-  function saveHighScore(){
-    try { localStorage.setItem(HS_KEY, String(highScore)); } catch(e){}
-  }
+  // ========= High Score =========
+  const HS_KEY='expedicion_hiscore_v1'; let highScore=0; try{ highScore=parseInt(localStorage.getItem(HS_KEY)||'0',10)||0; }catch(e){}
+  function saveHighScore(){ try{ localStorage.setItem(HS_KEY, String(highScore)); }catch(e){} }
 
-  // ========= Assets (robust loaders + fallbacks) =========
-  function loadImage(url, onok){
-    var img=new Image(); img.crossOrigin='anonymous';
-    img.onload=function(){ onok(img); };
-    img.onerror=function(){ console.warn('No se pudo cargar', url, '— uso fallback'); onok(null); };
-    img.src=url; return img;
-  }
-
-  // Robot PNG
-  var robotImg=null, robotReady=false, spriteW=96, spriteH=64; var robotScale=2; // Duplicar tamaño visual
+  // ========= Assets =========
+  var robotImg=null, robotReady=false, spriteW=96, spriteH=64; var robotScale=2;
   loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/subastian.png', function(img){
     if(img){ robotImg=img; robotReady=true; var targetH=64; var ratio=img.width/img.height; spriteH=targetH; spriteW=Math.round(targetH*ratio); }
-    else { // fallback SVG
-      robotImg = new Image(); robotImg.onload=function(){ robotReady=true; }; robotImg.src = makeDataUrl("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='64' viewBox='0 0 96 64'><rect width='96' height='64' fill='#1b2a3a'/><rect x='6' y='18' width='72' height='28' fill='#f6d23a' stroke='#6b4f00' stroke-width='2'/></svg>");
-    }
+    else { robotImg=new Image(); robotImg.onload=function(){robotReady=true}; robotImg.src=makeDataUrl("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='64' viewBox='0 0 96 64'><rect width='96' height='64' fill='#1b2a3a'/><rect x='6' y='18' width='72' height='28' fill='#f6d23a' stroke='#6b4f00' stroke-width='2'/></svg>"); }
   });
-
-  // Creatures spritesheet (2 frames/row)
-  var creaturesImg=null, creaturesReady=false, cFrameW=0, cFrameH=0, cRows=0;
-  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/Creatures/DeepseaCreatures_spritesheet.png', function(img){
-    if(img){ creaturesImg=img; cFrameW=Math.floor(img.width/2); cRows=Math.max(1, Math.floor(img.height/cFrameW)); cFrameH=Math.floor(img.height/cRows); creaturesReady=true; }
-    else { creaturesReady=false; }
-  });
-
-  // Background tiles (back + front/reef)
-  var bgImg=null, bgReady=false, bgOffset=0, bgW=0, bgH=0, BG_BASE_SPEED=35;
-  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/bg/bg_back.png', function(img){
-    if(img){ bgImg=img; bgReady=true; bgW=img.width; bgH=img.height; }
-    else { bgReady=false; bgW=64; bgH=64; }
-  });
-
-  var fgImg=null, fgReady=false, fgOffset=0, fgW=0, fgH=0, FG_BASE_SPEED=60; // a little faster for parallax
-  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/bg/bg_front.png', function(img){
-    if(img){ fgImg=img; fgReady=true; fgW=img.width; fgH=img.height; }
-    else { fgReady=false; fgW=64; fgH=64; }
-  });
+  var creaturesImg=null, creaturesReady=false, cFrameW=0,cFrameH=0,cRows=0;
+  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/Creatures/DeepseaCreatures_spritesheet.png', function(img){ if(img){ creaturesImg=img; cFrameW=Math.floor(img.width/2); cRows=Math.max(1, Math.floor(img.height/cFrameW)); cFrameH=Math.floor(img.height/cRows); creaturesReady=true; } });
+  var bgImg=null,bgReady=false,bgOffset=0,bgW=0,bgH=0,BG_BASE_SPEED=35;
+  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/bg/bg_back.png', function(img){ if(img){ bgImg=img; bgReady=true; bgW=img.width; bgH=img.height; } });
+  var fgImg=null,fgReady=false,fgOffset=0,fgW=0,fgH=0,FG_BASE_SPEED=60;
+  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/bg/bg_front.png', function(img){ if(img){ fgImg=img; fgReady=true; fgW=img.width; fgH=img.height; } });
 
   // ========= Geometry / Utils =========
   var W=innerWidth, H=innerHeight; const LANES_N=5; var lanes=[];
-
-  // ---- Particles (front-most dust) — declare BEFORE resize() so it's defined
-  var particles = [];
-  function spawnParticle(x,y){
-    var r = Math.random()*2 + 1.2; // 1.2 - 3.2 px
-    var vy = -(10 + Math.random()*25); // up (px/s)
-    var vx = -(8 + Math.random()*22);  // LEFT (px/s)
-    var a  = 0.25 + Math.random()*0.25; // base alpha 0.25 - 0.5
-    var tw = Math.random()*Math.PI*2;  // twinkle phase
-    return {x:x,y:y,vx:vx,vy:vy,r:r,baseA:a,tw:tw};
-  }
-  function initParticles(){
-    if(!particles) particles = [];
-    particles.length = 0;
-    var density = Math.max(40, Math.min(140, Math.floor((W*H)/28000)));
-    for(var i=0;i<density;i++) particles.push(spawnParticle(Math.random()*W, Math.random()*H));
-  }
-  function updateParticles(dt){
-    for(var i=0;i<particles.length;i++){
-      var p = particles[i];
-      p.x += p.vx*dt; p.y += p.vy*dt; p.tw += dt*2.0; // twinkle speed
-      if(p.x<-8 || p.y<-8){ // recycle at right/bottom
-        particles[i] = spawnParticle(W+10+Math.random()*20, H+10+Math.random()*40);
-      }
-    }
-  }
-  function drawParticles(){
-    ctx.save(); ctx.globalCompositeOperation='lighter';
-    for(var i=0;i<particles.length;i++){
-      var p=particles[i]; var alpha = p.baseA * (0.65 + 0.35*Math.sin(p.tw));
-      ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-      ctx.fillStyle = '#cfe9ff'; ctx.fill();
-    }
-    ctx.globalAlpha=1; ctx.restore();
-  }
-
-  function computeLanes(){ lanes.length=0; var minY=H*0.18, maxY=H*0.82; for(var i=0;i<LANES_N;i++){ var t=i/(LANES_N-1); lanes.push(minY + t*(maxY-minY)); } }
-  function resize(){
-    var v = viewportWH();
-    W=v.w; H=v.h;
-    cvs.width=W; cvs.height=H; bgCanvas.width=W; bgCanvas.height=H;
-    cvs.style.height = H + 'px'; bgCanvas.style.height = H + 'px';
-    computeLanes(); robotTilt=0; robotTiltTarget=0; initParticles();
-  }
-  resize(); addEventListener('resize', resize);
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
   function lerp(a,b,t){ return a + (b-a)*t; }
+  function computeLanes(){ lanes.length=0; var minY=H*0.18, maxY=H*0.82; for(var i=0;i<LANES_N;i++){ var t=i/(LANES_N-1); lanes.push(minY + t*(maxY-minY)); } }
+
+  // Particles (front-most dust)
+  var particles=[]; function spawnParticle(x,y){ var r=Math.random()*2+1.2; var vy=-(10+Math.random()*25); var vx=-(8+Math.random()*22); var a=0.25+Math.random()*0.25; var tw=Math.random()*Math.PI*2; return {x:x,y:y,vx:vx,vy:vy,r:r,baseA:a,tw:tw}; }
+  function initParticles(){ particles.length=0; var density=Math.max(40, Math.min(140, Math.floor((W*H)/28000))); for(var i=0;i<density;i++) particles.push(spawnParticle(Math.random()*W, Math.random()*H)); }
+  function updateParticles(dt){ for(var i=0;i<particles.length;i++){ var p=particles[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.tw+=dt*2.0; if(p.x<-8||p.y<-8){ particles[i]=spawnParticle(W+10+Math.random()*20, H+10+Math.random()*40); } } }
+  function drawParticles(){ ctx.save(); ctx.globalCompositeOperation='lighter'; for(var i=0;i<particles.length;i++){ var p=particles[i]; var alpha=p.baseA*(0.65+0.35*Math.sin(p.tw)); ctx.globalAlpha=alpha; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle='#cfe9ff'; ctx.fill(); } ctx.globalAlpha=1; ctx.restore(); }
+
   // Suave vaivén horizontal del robot (agua)
   function bobX(){ return Math.sin(state.elapsed * 2*Math.PI * 0.5) * 6; }
 
   // ========= State =========
   var state=null, player, animals, keys={};
-  var robotTilt=0, robotTiltTarget=0, MAX_TILT=Math.PI/36; // ≈5°
+  let overlayMode='menu'; let wasRunningBeforeCredits=false;
+  var robotTilt=0, robotTiltTarget=0, MAX_TILT=Math.PI/36;
   function reset(){ state={ run:false, rescued:0, score:0, depth_s:0, lives:3, lifeAnim:0, spawn:0, speed:260, elapsed:0, inputLock:0.2,
-      // linterna
-      lightPhase:'off', lightVisible:false, lightTimer:0, lightToggles:0
+      lightPhase:'off', lightVisible:false, lightTimer:0, lightToggles:0, lastMusicT:0
     }; player={ x:0.18, y:0.5, vy:0, r:26, h:null }; animals=[]; computeLanes(); }
 
   // ========= Difficulty / Entities =========
@@ -360,336 +279,143 @@
   // ========= Background draw =========
   function drawBG(dt){
     // BACK layer
-    if(bgReady&&bgW&&bgH){
-      var spd=BG_BASE_SPEED*(1+0.6*clamp(difficultyRaw(),0,2));
-      bgOffset=(bgOffset+spd*dt)%bgW; var ox=Math.floor(bgOffset);
-      bgCtx.setTransform(1,0,0,1,0,0);
-      bgCtx.clearRect(0,0,W,H);
-      bgCtx.imageSmoothingEnabled=false;
-      var startX=-ox-bgW;
-      for(var x=startX; x<W+bgW; x+=bgW){
-        for(var y=0; y<H+bgH; y+=bgH){ bgCtx.drawImage(bgImg, Math.round(x), Math.round(y)); }
-      }
-    } else { bgCtx.clearRect(0,0,W,H); }
-
-    // FRONT reef layer at bottom, moves faster
-    if(fgReady&&fgW&&fgH){
-      var fspd=FG_BASE_SPEED*(1+0.6*clamp(difficultyRaw(),0,2));
-      fgOffset=(fgOffset+fspd*dt)%fgW; var fox=Math.floor(fgOffset);
-      var yBase = H - fgH; // stick to bottom
-      var startXF = -fox - fgW;
-      for(var xx=startXF; xx<W+fgW; xx+=fgW){
-        bgCtx.drawImage(fgImg, Math.round(xx), Math.round(yBase));
-      }
-    }
+    if(bgReady&&bgW&&bgH){ var spd=BG_BASE_SPEED*(1+0.6*clamp(difficultyRaw(),0,2)); bgOffset=(bgOffset+spd*dt)%bgW; var ox=Math.floor(bgOffset); bgCtx.setTransform(1,0,0,1,0,0); bgCtx.clearRect(0,0,W,H); bgCtx.imageSmoothingEnabled=false; var startX=-ox-bgW; for(var x=startX; x<W+bgW; x+=bgW){ for(var y=0; y<H+bgH; y+=bgH){ bgCtx.drawImage(bgImg, Math.round(x), Math.round(y)); } } } else { bgCtx.clearRect(0,0,W,H); }
+    // FRONT reef layer
+    if(fgReady&&fgW&&fgH){ var fspd=FG_BASE_SPEED*(1+0.6*clamp(difficultyRaw(),0,2)); fgOffset=(fgOffset+fspd*dt)%fgW; var fox=Math.floor(fgOffset); var yBase=H-fgH; var startXF=-fox-fgW; for(var xx=startXF; xx<W+fgW; xx+=fgW){ bgCtx.drawImage(fgImg, Math.round(xx), Math.round(yBase)); } }
   }
 
   // ========= Update =========
-  const LIGHT_THRESHOLD = 1750; // m
-  const BLINK_PERIOD = 0.1;     // s, cada toggle
   function upd(dt){ if(!state||!state.run) return; state.elapsed+=dt; state.inputLock=Math.max(0,state.inputLock-dt);
     var depthP=clamp(state.elapsed/180,0,1); var newDepth=Math.floor(lerp(0,3900,depthP)); state.depth_s=Math.max(state.depth_s,newDepth);
     state.speed=currentSpeed();
-    // --- Linterna: se activa a 1750m con dos titileos ---
-    if(state.depth_s >= LIGHT_THRESHOLD){
-      if(state.lightPhase==='off'){
-        state.lightPhase='flicker';
-        state.lightVisible=true; // empieza encendida
-        state.lightTimer=BLINK_PERIOD;
-        state.lightToggles=0;
-      } else if(state.lightPhase==='flicker'){
-        state.lightTimer -= dt;
-        if(state.lightTimer<=0){
-          state.lightVisible = !state.lightVisible;
-          state.lightToggles++;
-          state.lightTimer += BLINK_PERIOD;
-          if(state.lightToggles>=4){ // on-off-on-off => dos destellos
-            state.lightPhase='on';
-            state.lightVisible=true;
-          }
-        }
-      } else { // 'on'
-        state.lightVisible=true;
-      }
-    } else {
-      state.lightPhase='off';
-      state.lightVisible=false;
-      state.lightTimer=0; state.lightToggles=0;
-    }
+    // Linterna a los 81s de música
+    const LIGHT_MUSIC_T=81; var musicT=S.time('music'); if(musicT<state.lastMusicT){ state.lightPhase='off'; state.lightVisible=false; state.lightTimer=0; state.lightToggles=0; }
+    if(musicT>=LIGHT_MUSIC_T){ if(state.lightPhase==='off'){ state.lightPhase='flicker'; state.lightVisible=true; state.lightTimer=0.1; state.lightToggles=0; } else if(state.lightPhase==='flicker'){ state.lightTimer-=dt; if(state.lightTimer<=0){ state.lightVisible=!state.lightVisible; state.lightToggles++; state.lightTimer+=0.1; if(state.lightToggles>=4){ state.lightPhase='on'; state.lightVisible=true; } } } else { state.lightVisible=true; } } else { state.lightPhase='off'; state.lightVisible=false; state.lightTimer=0; state.lightToggles=0; }
+    state.lastMusicT=musicT;
+
     var up=!!keys['ArrowUp'], down=!!keys['ArrowDown'];
-    if(dragActive){
-      // Follow finger vertically with logarithmic easing
-      var targetYpx = clamp(dragY, H*0.1, H*0.9);
-      var dy = targetYpx - (player.y*H);
-      var speed = Math.sign(dy) * (450 * Math.log(1 + Math.abs(dy)/24)); // px/s
-      player.y = clamp(player.y + (speed*dt)/H, 0.1, 0.9);
-      robotTiltTarget = dy < -4 ? -MAX_TILT : (dy>4 ? MAX_TILT : 0);
-    } else {
-      player.vy = up?-400:down?400:0;
-      player.y = clamp(player.y + (player.vy*dt/H), 0.1, 0.9);
-      robotTiltTarget = up ? -MAX_TILT : (down ? MAX_TILT : 0);
-    }
+    if(dragActive){ var targetYpx=clamp(dragY, H*0.1, H*0.9); var dy=targetYpx-(player.y*H); var sp=Math.sign(dy)*(450*Math.log(1+Math.abs(dy)/24)); player.y=clamp(player.y+(sp*dt)/H,0.1,0.9); robotTiltTarget = dy < -4 ? -MAX_TILT : (dy>4 ? MAX_TILT : 0); }
+    else { player.vy=up?-400:down?400:0; player.y=clamp(player.y+(player.vy*dt/H),0.1,0.9); robotTiltTarget = up ? -MAX_TILT : (down ? MAX_TILT : 0); }
     robotTilt += (robotTiltTarget - robotTilt) * Math.min(1, 8*dt);
     if(keys[' ']&&state.inputLock===0){ if(!player.h){ fire(); } else if(player.h.phase==='out'){ player.h.phase='return'; } keys[' ']=false; }
     for(var i=animals.length-1;i>=0;i--){ var a=animals[i]; a.x+=a.vx*dt; a.frameTimer+=dt; if(a.frameTimer>=0.2){ a.frameTimer-=0.2; a.frame^=1; } if(!a.captured && a.x<-a.r){ animals.splice(i,1); var before=state.lives; if(state.lives>0) state.lives--; if(state.lives<before){ state.lifeAnim=0.6; S.play('lose'); } if(state.lives<=0) end(); } }
     if(player.h){ var h=player.h, spd=h.speed; if(h.phase==='out'){ h.x+=h.dx*spd*dt; h.traveled+=spd*dt; for(var j=0;j<animals.length;j++){ var aa=animals[j]; if(!h.hit && !aa.captured && Math.hypot(aa.x-h.x,aa.y-h.y)<aa.r+8){ h.hit=aa; aa.captured=true; break; } } if(h.hit || h.traveled>=h.range) h.phase='return'; } else { h.x-=h.dx*spd*dt; var targetY=player.y*H; h.y += (targetY - h.y) * Math.min(1, 6*dt); h.traveled=Math.max(0,h.traveled-spd*dt); if(h.hit){ h.hit.x=h.x; h.hit.y=h.y; } if(h.traveled<=0){ if(h.hit){ state.rescued++; state.score+=pointsForRescue(); var idx=animals.indexOf(h.hit); if(idx!==-1) animals.splice(idx,1);} player.h=null; } } }
     state.lifeAnim=Math.max(0,state.lifeAnim-dt); state.spawn-=dt; if(state.spawn<=0){ spawnAnimal(); state.spawn=currentSpawnPeriod(); }
-    var overlayAlpha=lerp(0,0.9,clamp(state.elapsed/180,0,1)); darkOverlay.style.background='rgba(0,0,0,'+overlayAlpha.toFixed(3)+')'; }
+  }
 
   // ========= Draw =========
   function draw(){
-    function drawLightCone(){ if(!player) return; var px=player.x*W + bobX(), py=player.y*H; var ang=robotTilt; var ux=Math.cos(ang), uy=Math.sin(ang); var vx=-Math.sin(ang), vy=Math.cos(ang); var ax=Math.round(px + ux*(spriteW*robotScale*0.5 - 11) + vx*(-4)); var ay=Math.round(py + uy*(spriteW*robotScale*0.5 - 11) + vy*(-4)); var L=Math.min(W*0.65,560); var theta=Math.PI/9; var endx=ax+ux*L, endy=ay+uy*L; var half=Math.tan(theta)*L; var pTopX=endx+vx*half, pTopY=endy+vy*half; var pBotX=endx-vx*half, pBotY=endy-vy*half; ctx.save(); ctx.globalCompositeOperation='lighter';
-      // Pulsación sutil del haz (loop infinito)
-      var pulse = 0.85 + 0.15 * (0.5 + 0.5 * Math.sin((state?state.elapsed:0) * 2*Math.PI / 3)); // periodo ~3s
-      var g=ctx.createLinearGradient(ax,ay,endx,endy);
-      g.addColorStop(0,  'rgba(255,255,240,' + (0.50*pulse).toFixed(3) + ')');
-      g.addColorStop(0.5,'rgba(255,255,255,' + (0.18*pulse).toFixed(3) + ')');
-      g.addColorStop(1,  'rgba(255,255,255,0)');
-      ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(pTopX,pTopY); ctx.lineTo(pBotX,pBotY); ctx.closePath(); ctx.fill(); var rg=ctx.createRadialGradient(ax,ay,0,ax,ay,42);
-      rg.addColorStop(0,'rgba(255,255,220,' + (0.45*pulse).toFixed(3) + ')');
-      rg.addColorStop(1,'rgba(255,255,220,0)');
-      ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(ax,ay,42,0,Math.PI*2); ctx.fill(); ctx.restore(); }
-
+    // world
     ctx.clearRect(0,0,W,H);
     for(var i=0;i<animals.length;i++){ var a=animals[i]; var floatOffset=Math.sin(Math.PI*state.elapsed + a.phaseSeed)*5; if(creaturesReady&&cRows>0){ var sx=(a.frame%2)*cFrameW, sy=(a.row%cRows)*cFrameH; ctx.imageSmoothingEnabled=false; ctx.drawImage(creaturesImg, sx,sy,cFrameW,cFrameH, Math.round(a.x-a.size/2), Math.round(a.y+floatOffset-a.size/2), a.size,a.size); ctx.imageSmoothingEnabled=true; } else { ctx.fillStyle='#ffd95e'; ctx.beginPath(); ctx.arc(a.x,a.y+floatOffset,a.r,0,Math.PI*2); ctx.fill(); } }
-
     if(player){ var px=player.x*W + bobX(), py=player.y*H; ctx.save(); ctx.translate(px,py); ctx.rotate(robotTilt); if(robotReady){ ctx.imageSmoothingEnabled=false; var dw=spriteW*robotScale, dh=spriteH*robotScale; ctx.drawImage(robotImg, Math.round(-dw/2), Math.round(-dh/2), dw, dh); ctx.imageSmoothingEnabled=true; } else { ctx.fillStyle='#7ef'; ctx.beginPath(); ctx.arc(0,0,player.r,0,Math.PI*2); ctx.fill(); } ctx.restore(); }
-
-    if(player&&player.h){ ctx.strokeStyle='#8ff'; ctx.beginPath(); var hx0 = player.x*W + bobX(), hy0 = player.y*H; ctx.moveTo(hx0, hy0); ctx.lineTo(player.h.x, player.h.y); ctx.stroke(); ctx.fillStyle='#8ff'; ctx.beginPath(); ctx.arc(player.h.x, player.h.y, 6, 0, Math.PI*2); ctx.fill(); }
-
-    // Luz antes del HUD
-    if(state && state.lightVisible) drawLightCone();
-
-    // Partículas en primer plano (no afectan HUD)
+    if(player&&player.h){ ctx.strokeStyle='#8ff'; ctx.beginPath(); var hx0=player.x*W + bobX(), hy0=player.y*H; ctx.moveTo(hx0,hy0); ctx.lineTo(player.h.x, player.h.y); ctx.stroke(); ctx.fillStyle='#8ff'; ctx.beginPath(); ctx.arc(player.h.x, player.h.y, 6, 0, Math.PI*2); ctx.fill(); }
     drawParticles();
 
-    // HUD inferior
-    var depthVal=Math.floor(state?state.depth_s:0), scoreVal=state?state.score:0, livesVal=state?state.lives:3, rescuedVal=state?state.rescued:0;
-    var depthP2=clamp((state?state.depth_s:0)/3900,0,1), tempC=(15-13*depthP2), salPSU=(30+10*depthP2);
-    var padX=18,padY=18,lh=22; // line height
-    // Labels & values with fixed columns
-    var rows = [
-      {label:'SCORE',     value:String(scoreVal)},
-      {label:'DEPTH',     value:depthVal+' m'},
-      {label:'RECORD',    value:String(highScore)},
-      {label:'TEMP',      value:tempC.toFixed(2)+' °C'},
-      {label:'SALINITY',  value:salPSU.toFixed(1)+' PSU'},
-    ];
-    var totalRows = rows.length + 2; // + LIVES + SPECIMENS
-    var y0 = H - padY - lh*totalRows + 6;
-    ctx.save();
-    ctx.fillStyle='#ffffff';
-    ctx.font='18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
-    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-    // Compute value column X by measuring widest label
-    var maxLabelW = 0; for(var i=0;i<rows.length;i++){ maxLabelW = Math.max(maxLabelW, ctx.measureText(rows[i].label).width); }
-    var gap = 16; var valueX = padX + maxLabelW + gap;
-    for(var i=0;i<rows.length;i++){
-      var y = y0 + i*lh; ctx.fillText(rows[i].label, padX, y); ctx.fillText(rows[i].value, valueX, y);
+    // darkness mask on fxCanvas (not affecting HUD)
+    drawLightMask();
+
+    // HUD on top canvas
+    drawHUD();
+  }
+
+  function drawLightMask(){
+    fx.clearRect(0,0,W,H);
+    // darkness amount grows with time/depth (0..0.9)
+    var alpha = lerp(0,0.9, clamp((state?state.elapsed:0)/180,0,1));
+    if(alpha<=0.001){ return; }
+    fx.globalCompositeOperation='source-over';
+    fx.fillStyle='rgba(0,0,0,'+alpha.toFixed(3)+')';
+    fx.fillRect(0,0,W,H);
+
+    if(state && state.lightVisible && player){
+      // Carve the cone out of the darkness with soft edges
+      var px=player.x*W + bobX(), py=player.y*H; var ang=robotTilt; var ux=Math.cos(ang), uy=Math.sin(ang); var vx=-Math.sin(ang), vy=Math.cos(ang);
+      var ax=Math.round(px + ux*(spriteW*robotScale*0.5 - 11) + vx*(-4));
+      var ay=Math.round(py + uy*(spriteW*robotScale*0.5 - 11) + vy*(-4));
+      var L=Math.min(W*0.65,560); var theta=Math.PI/9; var endx=ax+ux*L, endy=ay+uy*L; var half=Math.tan(theta)*L;
+      var pTopX=endx+vx*half, pTopY=endy+vy*half; var pBotX=endx-vx*half, pBotY=endy-vy*half;
+
+      // Create a gradient aligned with cone length (opaque removal near robot, fades to 0 at far end)
+      var g = fx.createLinearGradient(ax,ay,endx,endy);
+      // Más "blanca": quitamos parte de la caída intermedia para que el recorte sea más intenso
+      g.addColorStop(0.00,'rgba(255,255,255,1.0)');
+      g.addColorStop(0.45,'rgba(255,255,255,0.5)');
+      g.addColorStop(1.00,'rgba(255,255,255,0.0)');
+      fx.globalCompositeOperation='destination-out';
+      fx.fillStyle=g;
+      fx.beginPath(); fx.moveTo(ax,ay); fx.lineTo(pTopX,pTopY); fx.lineTo(pBotX,pBotY); fx.closePath(); fx.fill();
+
+      // Soft halo at the source (radial) to blur the base
+      var rg = fx.createRadialGradient(ax,ay,0, ax,ay, 54);
+      rg.addColorStop(0,'rgba(255,255,255,1.0)');
+      rg.addColorStop(1,'rgba(255,255,255,0.0)');
+      fx.fillStyle=rg; fx.beginPath(); fx.arc(ax,ay,54,0,Math.PI*2); fx.fill();
+
+      // Añadimos una pasada aditiva muy sutil para "blanquear" lo iluminado
+      fx.globalCompositeOperation='lighter';
+      var gGlow = fx.createLinearGradient(ax,ay,endx,endy);
+      gGlow.addColorStop(0.00,'rgba(255,255,255,0.14)');
+      gGlow.addColorStop(0.60,'rgba(255,255,255,0.06)');
+      gGlow.addColorStop(1.00,'rgba(255,255,255,0.00)');
+      fx.fillStyle=gGlow; fx.beginPath(); fx.moveTo(ax,ay); fx.lineTo(pTopX,pTopY); fx.lineTo(pBotX,pBotY); fx.closePath(); fx.fill();
+
+      fx.globalCompositeOperation='source-over';
     }
-    // LIVES row (hearts aligned to value column)
-    var livesLabel='LIVES'; var livesY = y0 + rows.length*lh; ctx.fillText(livesLabel, padX, livesY);
-    var hearts='♥'.repeat(livesVal)+'♡'.repeat(3-livesVal);
-    ctx.fillStyle='#ff4d4d'; ctx.fillText(hearts, valueX, livesY);
-    ctx.fillStyle='#ffffff';
-    // SPECIMENS row
-    ctx.fillText('SPECIMENS', padX, livesY+lh); ctx.fillText(String(rescuedVal), valueX, livesY+lh);
-    // UTC clock centered
-    var iso=new Date().toISOString(); var utcStr=iso.slice(0,10)+' '+iso.slice(11,19)+' UTC';
-    ctx.textAlign='center'; ctx.fillText(utcStr, W/2, H-12); ctx.restore();
+  }
+
+  function drawHUD(){
+    hud.clearRect(0,0,W,H);
+    var depthVal=Math.floor(state?state.depth_s:0), scoreVal=state?state.score:0, livesVal=state?state.lives:3, rescuedVal=state?state.rescued:0; var depthP2=clamp((state?state.depth_s:0)/3900,0,1), tempC=(15-13*depthP2), salPSU=(30+10*depthP2);
+    var padX=18,padY=18,lh=22; var rows=[ {label:'SCORE',value:String(scoreVal)}, {label:'DEPTH',value:depthVal+' m'}, {label:'RECORD',value:String(highScore)}, {label:'TEMP',value:tempC.toFixed(2)+' °C'}, {label:'SALINITY',value:salPSU.toFixed(1)+' PSU'} ]; var totalRows=rows.length+2; var y0=H-padY-lh*totalRows+6;
+    hud.save(); hud.fillStyle='#ffffff'; hud.font='18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace'; hud.textAlign='left'; hud.textBaseline='alphabetic';
+    var maxLabelW=0; for(var i=0;i<rows.length;i++) maxLabelW=Math.max(maxLabelW, hud.measureText(rows[i].label).width); var gap=16; var valueX=padX+maxLabelW+gap; for(var i=0;i<rows.length;i++){ var y=y0+i*lh; hud.fillText(rows[i].label, padX, y); hud.fillText(rows[i].value, valueX, y); }
+    var livesY=y0+rows.length*lh; hud.fillText('LIVES', padX, livesY); hud.fillStyle='#ff4d4d'; hud.fillText('♥'.repeat(livesVal)+'♡'.repeat(3-livesVal), valueX, livesY); hud.fillStyle='#ffffff'; hud.fillText('SPECIMENS', padX, livesY+lh); hud.fillText(String(rescuedVal), valueX, livesY+lh); var iso=new Date().toISOString(); var utcStr=iso.slice(0,10)+' '+iso.slice(11,19)+' UTC'; hud.textAlign='center'; hud.fillText(utcStr, W/2, H-12); hud.restore();
   }
 
   // ========= Loop =========
   var last=0; function loop(t){ var dt=Math.min(0.033, (t-last)/1000 || 0); last=t; drawBG(dt); updateParticles(dt); upd(dt); draw(); requestAnimationFrame(loop); }
 
   // ========= Start / End =========
-  let __starting = false;
-  function start(){
-    if(__starting) return; __starting = true;
-    if(state && state.run) { __starting = false; return; }
-    reset(); keys={}; state.inputLock=0.2; state.run=true; state.spawn=0.01;
-    S.init();
-    S.loop('music');
-    titleEl.style.display='none';
-    brandLogo.style.display='block';
-    finalP.textContent='Captura tantos especímenes del Cañón de Mar del Plata como puedas';
-    finalStats.style.display='none';
-    if(mainExtras) mainExtras.style.display='none';
-    overlay.style.display='none';
-    startBtn.style.display='inline';
-    restartBtn.style.display='none';
-    refreshIcons();
-    setTimeout(()=>{ __starting = false; }, 200);
-  }
-  function end(){ if(!state) return; state.run=false; S.stop('music'); S.play('gameover');
-    // Actualizar record si corresponde
-    if(state.score > highScore){ highScore = state.score; saveHighScore(); }
-    brandLogo.style.display='none'; titleEl.style.display='block'; titleEl.textContent='Fin de la expedición';
-    finalP.textContent='Gracias por ser parte';
-    statScore.textContent='SCORE: '+state.score; statDepth.textContent='DEPTH: '+state.depth_s+' m'; statSpecimens.textContent='SPECIMENS: '+state.rescued;
-    finalStats.style.display='block';
-    if(mainExtras) mainExtras.style.display='none';
-    startBtn.style.display='none'; restartBtn.style.display='inline'; overlay.style.display='grid'; }
+  let __starting=false; function start(){ if(__starting) return; __starting=true; if(state&&state.run){ __starting=false; return; } reset(); keys={}; state.inputLock=0.2; state.run=true; state.spawn=0.01; S.init(); S.stop('music'); S.loop('music'); titleEl.style.display='none'; brandLogo.style.display='block'; finalP.textContent='Captura tantos especímenes del Cañón de Mar del Plata como puedas'; finalStats.style.display='none'; if(mainExtras) mainExtras.style.display='none'; overlay.style.display='none'; overlayMode='menu'; startBtn.style.display='inline'; restartBtn.style.display='none'; refreshIcons(); setTimeout(function(){ __starting=false; },200); }
+  function end(){ if(!state) return; state.run=false; S.stop('music'); S.play('gameover'); if(state.score>highScore){ highScore=state.score; saveHighScore(); } brandLogo.style.display='none'; titleEl.style.display='block'; titleEl.textContent='Fin de la expedición'; finalP.textContent='Gracias por ser parte'; statScore.textContent='SCORE: '+state.score; statDepth.textContent='DEPTH: '+state.depth_s+' m'; statSpecimens.textContent='SPECIMENS: '+state.rescued; finalStats.style.display='block'; if(mainExtras) mainExtras.style.display='none'; startBtn.style.display='none'; restartBtn.style.display='inline'; overlayMode='gameover'; overlay.style.display='grid'; }
 
   // ========= Input & Buttons =========
-  addEventListener('keydown', function(e){ keys[e.key]=true; if(e.code==='Space') e.preventDefault(); });
-  addEventListener('keyup',   function(e){ keys[e.key]=false; });
-  startBtn.onclick = function(e){ e.stopPropagation(); start(); };
-  restartBtn.onclick = start;
-  muteBtn.onclick = function(){ S.toggleMuted(); refreshIcons(); };
-  infoBtn.onclick = function(){ infoOverlay.style.display='grid'; };
-  closeInfo.onclick = function(){ infoOverlay.style.display='none'; };
-  fsBtn.onclick = function(){ toggleFullscreen(); };
-  overlay.addEventListener('click', function(e){ if(e.target === overlay && overlay.style.display !== 'none' && restartBtn.style.display==='none'){ start(); } });
-  logoHUD.addEventListener('click', function(){ openMainMenu(); });
-  shareBtn.addEventListener('click', function(){ doShare(); });
+  var keys={}; addEventListener('keydown', function(e){ keys[e.key]=true; if(e.code==='Space') e.preventDefault(); }); addEventListener('keyup', function(e){ keys[e.key]=false; });
+  startBtn.onclick=function(e){ e.stopPropagation(); if(overlayMode==='pause'){ overlay.style.display='none'; if(state){ state.run=true; state.inputLock=0.15; } S.loop('music'); } else { start(); } };
+  restartBtn.onclick=start; document.getElementById('muteBtn').onclick=function(){ S.toggleMuted(); refreshIcons(); };
+  function showMainMenuView(fromPause){ brandLogo.style.display='block'; titleEl.style.display='none'; finalP.textContent='Captura tantos especímenes del Cañón de Mar del Plata como puedas'; finalStats.style.display='none'; recordLine.textContent='RECORD: '+highScore; if(mainExtras) mainExtras.style.display= fromPause ? 'block':'none'; startBtn.textContent= fromPause ? 'Continuar' : 'Sumergirse'; startBtn.style.display='inline'; restartBtn.style.display='none'; overlayMode= fromPause ? 'pause':'menu'; overlay.style.display='grid'; }
+  function openMainMenu(){ if(state){ state.run=false; } S.pause('music'); showMainMenuView(true); }
+  document.getElementById('infoBtn').onclick=openMainMenu;
+  // Use existing wasRunningBeforeCredits (avoid duplicate declaration)
+  logoHUD.addEventListener('click', function(){ wasRunningBeforeCredits=!!(state&&state.run); if(state){ state.run=false; } S.pause('music'); infoOverlay.style.display='grid'; });
+  closeInfo.onclick=function(){ infoOverlay.style.display='none'; if(wasRunningBeforeCredits && overlay.style.display==='none'){ if(state){ state.run=true; } S.loop('music'); } };
+  fsBtn.onclick=function(){ toggleFullscreen(); };
+  overlay.addEventListener('click', function(e){ if(e.target===overlay && overlay.style.display!=='none' && restartBtn.style.display==='none'){ if(overlayMode==='pause'){ overlay.style.display='none'; if(state){ state.run=true; state.inputLock=0.15; } S.loop('music'); } else { start(); } } });
+  shareBtn.addEventListener('click', async function(){ var shareData={ title:'Expedición Mardel', text:'Captura tantos especímenes del cañon de Mar del Plata como puedas', url: location.href }; if(navigator.share){ try{ await navigator.share(shareData); }catch(e){} } else if(navigator.clipboard && navigator.clipboard.writeText){ try{ await navigator.clipboard.writeText(shareData.url); alert('Enlace copiado al portapapeles'); }catch(e){ alert(shareData.url); } } else { alert(shareData.url); } });
 
-  // ---- Mobile controls (drag on left 50%; tap anywhere) ----
-  var tStartX=0, tStartY=0, tStartT=0; var touchStartedOverUI=false;
-  var dragId=-1, dragActive=false, dragY=0, dragInZone=false;
-  var SWIPE_DIST=40, SWIPE_TIME=600; // legacy
-  var TAP_DIST=10, TAP_TIME=300;     // px, ms
+  // ---- Mobile controls (drag left 50%, tap anywhere for hook unless over UI) ----
+  var tStartX=0,tStartY=0,tStartT=0; var touchStartedOverUI=false; var dragId=-1, dragActive=false, dragY=0, dragInZone=false; var TAP_DIST=10, TAP_TIME=300;
   function inLeftZone(x){ return x < (innerWidth*0.5); }
-  function isOverUI(x,y){
-    const elts=[muteBtn, infoBtn, fsBtn, overlay, infoOverlay];
-    for(let i=0;i<elts.length;i++){
-      const el=elts[i]; if(!el) continue; const style=getComputedStyle(el); if(style.display==='none' || style.visibility==='hidden') continue;
-      const r=el.getBoundingClientRect(); if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom) return true;
-    }
-    return false;
-  }
+  function isOverUI(x,y){ const elts=[document.getElementById('muteBtn'), document.getElementById('infoBtn'), document.getElementById('fsBtn'), overlay, infoOverlay]; for(let i=0;i<elts.length;i++){ const el=elts[i]; if(!el) continue; const style=getComputedStyle(el); if(style.display==='none'||style.visibility==='hidden') continue; const r=el.getBoundingClientRect(); if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom) return true; } return false; }
   function simulateTap(){ if(!state||!state.run) return; if(state.inputLock===0){ if(!player.h){ fire(); } else if(player.h.phase==='out'){ player.h.phase='return'; } } }
+  window.addEventListener('touchstart', function(ev){ if(!ev.touches||!ev.touches.length) return; var t=ev.changedTouches[0]; tStartX=t.clientX; tStartY=t.clientY; tStartT=performance.now(); touchStartedOverUI=isOverUI(tStartX,tStartY); if(!touchStartedOverUI && inLeftZone(tStartX)){ dragId=t.identifier; dragActive=true; dragY=t.clientY; dragInZone=true; ev.preventDefault(); } else { dragInZone=false; } }, {passive:false});
+  window.addEventListener('touchmove', function(ev){ if(!dragActive) return; for(var i=0;i<ev.changedTouches.length;i++){ var t=ev.changedTouches[i]; if(t.identifier===dragId){ dragY=t.clientY; if(dragInZone) ev.preventDefault(); break; } } }, {passive:false});
+  window.addEventListener('touchend', function(ev){ var tEnd=performance.now(); var dtTap=tEnd-tStartT; var touch=(ev.changedTouches&&ev.changedTouches[0])||null; var ex=touch?touch.clientX:tStartX; var ey=touch?touch.clientY:tStartY; var adx=Math.abs(ex-tStartX), ady=Math.abs(ey-tStartY); if(!touchStartedOverUI && dtTap<=TAP_TIME && adx<TAP_DIST && ady<TAP_DIST){ simulateTap(); } for(var i=0;i<ev.changedTouches.length;i++){ var t=ev.changedTouches[i]; if(t.identifier===dragId){ dragActive=false; dragId=-1; dragInZone=false; break; } } }, {passive:false});
 
-  window.addEventListener('touchstart', function(ev){
-    if(!ev.touches || !ev.touches.length) return;
-    var t=ev.changedTouches[0];
-    tStartX=t.clientX; tStartY=t.clientY; tStartT=performance.now();
-    touchStartedOverUI = isOverUI(tStartX, tStartY);
-    // Start drag only if in left zone AND not on UI
-    if(!touchStartedOverUI && inLeftZone(tStartX)){
-      dragId=t.identifier; dragActive=true; dragY=t.clientY; dragInZone=true; ev.preventDefault();
-    } else { dragInZone=false; }
-  }, {passive:false});
-
-  window.addEventListener('touchmove', function(ev){
-    if(!dragActive) return;
-    for(var i=0;i<ev.changedTouches.length;i++){
-      var t=ev.changedTouches[i];
-      if(t.identifier===dragId){ dragY=t.clientY; if(dragInZone) ev.preventDefault(); break; }
-    }
-  }, {passive:false});
-
-  window.addEventListener('touchend', function(ev){
-    // detect tap ANYWHERE on screen
-    var tEnd=performance.now(); var dtTap=tEnd - tStartT;
-    var touch=(ev.changedTouches&&ev.changedTouches[0]) || null; var ex = touch?touch.clientX:tStartX; var ey = touch?touch.clientY:tStartY;
-    var adx=Math.abs(ex - tStartX), ady=Math.abs(ey - tStartY);
-    if(!touchStartedOverUI && dtTap<=TAP_TIME && adx<TAP_DIST && ady<TAP_DIST){ simulateTap(); }
-
-    // stop drag if our finger left
-    for(var i=0;i<ev.changedTouches.length;i++){
-      var t=ev.changedTouches[i];
-      if(t.identifier===dragId){ dragActive=false; dragId=-1; dragInZone=false; break; }
-    }
-  }, {passive:false});
-
-  // ========= Fullscreen (permission-safe) =========
-  function canUseFullscreen(){
-    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.msFullscreenEnabled);
-  }
-  let immersive=false;
-  function toggleImmersive(){
-    immersive = !immersive;
-    document.body.classList.toggle('immersive', immersive);
-  }
-  function toggleFullscreen(){
-    // Si la política de permisos bloquea fullscreen, usar fallback "inmersivo"
-    if(!canUseFullscreen()) { toggleImmersive(); return; }
-    const el = document.documentElement;
-    try{
-      if(!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement){
-        if(el.requestFullscreen) return el.requestFullscreen();
-        if(el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
-        if(el.msRequestFullscreen) return el.msRequestFullscreen();
-      } else {
-        if(document.exitFullscreen) return document.exitFullscreen();
-        if(document.webkitExitFullscreen) return document.webkitExitFullscreen();
-        if(document.msExitFullscreen) return document.msExitFullscreen();
-      }
-    }catch(err){
-      // Fallback silencioso si la política lo bloquea
-      console.warn('Fullscreen no disponible, uso modo inmersivo', err);
-      toggleImmersive();
-    }
-  }
+  // ========= Fullscreen / Immersive =========
+  function canUseFullscreen(){ return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.msFullscreenEnabled); }
+  let immersive=false; function toggleImmersive(){ immersive=!immersive; document.body.classList.toggle('immersive', immersive); }
+  function toggleFullscreen(){ if(!canUseFullscreen()) { toggleImmersive(); return; } const el=document.documentElement; try{ if(!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement){ if(el.requestFullscreen) return el.requestFullscreen(); if(el.webkitRequestFullscreen) return el.webkitRequestFullscreen(); if(el.msRequestFullscreen) return el.msRequestFullscreen(); } else { if(document.exitFullscreen) return document.exitFullscreen(); if(document.webkitExitFullscreen) return document.webkitExitFullscreen(); if(document.msExitFullscreen) return document.msExitFullscreen(); } } catch(err){ console.warn('Fullscreen no disponible, uso modo inmersivo', err); toggleImmersive(); } }
   document.addEventListener('fullscreenchange', ()=>{ refreshIcons(); });
 
-  // ========= Main Menu helpers =========
-  function showMainMenuView(fromLogo){
-    // Configure overlay to main menu mode
-    brandLogo.style.display='block';
-    titleEl.style.display='none';
-    finalP.textContent='Captura tantos especímenes del Cañón de Mar del Plata como puedas';
-    finalStats.style.display='none';
-    recordLine.textContent='RECORD: '+highScore;
-    if(mainExtras) mainExtras.style.display = fromLogo ? 'block' : 'none';
-    startBtn.textContent = fromLogo ? 'Continuar' : 'Sumergirse';
-    startBtn.style.display='inline';
-    restartBtn.style.display='none';
-    overlay.style.display='grid';
-  }
-  function openMainMenu(){
-    if(state){ state.run=false; }
-    S.pause('music');
-    showMainMenuView(true);
-  }
-  async function doShare(){
-    var shareData={ title:'Expedición Mardel', text:'Captura tantos especímenes del cañon de Mar del Plata como puedas', url: location.href };
-    if(navigator.share){
-      try{ await navigator.share(shareData); }catch(e){}
-    } else if(navigator.clipboard && navigator.clipboard.writeText){
-      try{ await navigator.clipboard.writeText(shareData.url); alert('Enlace copiado al portapapeles'); }catch(e){ alert(shareData.url); }
-    } else {
-      alert(shareData.url);
-    }
-  }
+  // ========= Size / Init =========
+  function viewportWH(){ var vv=window.visualViewport; return { w:(vv?vv.width:innerWidth), h:(vv?vv.height:innerHeight) }; }
+  function autoSize(){ var v=viewportWH(); [bgCanvas,cvs,fxCanvas,hudCanvas].forEach(c=>{ c.width=v.w; c.height=v.h; c.style.height=v.h+'px'; }); W=v.w; H=v.h; computeLanes(); initParticles(); }
+  window.visualViewport && visualViewport.addEventListener('resize', autoSize); autoSize(); addEventListener('resize', autoSize);
+  function __resume(){ if(state && state.run){ S.loop('music'); } window.removeEventListener('pointerdown', __resume); window.removeEventListener('keydown', __resume); }
+  reset(); (function(){ try{ requestAnimationFrame(loop); }catch(e){} })(); S.init(); refreshIcons(); window.addEventListener('pointerdown', __resume, { once:true }); window.addEventListener('keydown', __resume, { once:true });
 
-  // ========= Init =========
-  function viewportWH(){
-    var vv = window.visualViewport;
-    return { w: (vv? vv.width : innerWidth), h: (vv? vv.height : innerHeight) };
-  }
-  function autoSize(){
-    var v = viewportWH();
-    cvs.width=v.w; cvs.height=v.h; bgCanvas.width=v.w; bgCanvas.height=v.h;
-    // También fijar altura CSS para evitar que la barra del browser tape el HUD
-    cvs.style.height = v.h + 'px'; bgCanvas.style.height = v.h + 'px';
-    // Ajustar H/W usados por el juego
-    W=v.w; H=v.h;
-  }
-  window.visualViewport && visualViewport.addEventListener('resize', autoSize);
-  autoSize(); addEventListener('resize', autoSize);
-  reset(); loadHighScore(); showMainMenuView(false); requestAnimationFrame(loop);
-  S.init(); refreshIcons();
-  function __resume(){
-    if(state && state.run){ S.loop('music'); }
-    window.removeEventListener('pointerdown', __resume);
-    window.removeEventListener('keydown', __resume);
-  }
-  window.addEventListener('pointerdown', __resume, { once:true });
-  window.addEventListener('keydown', __resume, { once:true });
-
-  // ========= Self-tests =========
-  (function(){
-    try{
-      console.assert(iconSpeakerOn.startsWith('data:image/svg+xml'), 'iconSpeakerOn data URL');
-      console.assert(iconSpeakerOff.startsWith('data:image/svg+xml'), 'iconSpeakerOff data URL');
-      console.assert(iconInfo.startsWith('data:image/svg+xml'), 'iconInfo data URL');
-      console.assert(typeof drawBG === 'function', 'drawBG exists');
-      console.assert(typeof start === 'function', 'start exists');
-      console.assert(Array.isArray(particles), 'particles array initialized');
-    }catch(e){ console.warn('Self-tests warning', e); }
-  })();
 })();
 </script>
 </body>
