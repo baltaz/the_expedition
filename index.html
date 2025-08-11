@@ -4,23 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta name="description" content="Captura tantos especímenes del cañon de Mar del Plata como puedas"/>
-  <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website"/>
   <meta property="og:title" content="Expedición Mardel"/>
   <meta property="og:description" content="Captura tantos especímenes del cañon de Mar del Plata como puedas"/>
   <meta property="og:image" content="https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/share.jpeg"/>
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image"/>
-  <meta name="twitter:title" content="Expedición Mardel"/>
-  <meta name="twitter:description" content="Captura tantos especímenes del cañon de Mar del Plata como puedas"/>
-  <meta name="twitter:image" content="https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/share.jpeg"/>
-  <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/favicon.ico"/>
   <title>Expedición Mardel</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     html, body { margin:0; height:100%; background:#06131f; font-family: 'Press Start 2P', monospace; overflow:hidden; }
-    /* Layers: bg(0) -> game(1) -> fx darkness mask (2) -> HUD text (3) -> UI buttons (5+) -> modals (7) */
     #bgCanvas { position: fixed; inset:0; width:100vw; height:100vh; z-index:0; display:block; }
     #gameCanvas{ position: fixed; inset:0; width:100vw; height:100vh; z-index:1; display:block; }
     #fxCanvas  { position: fixed; inset:0; width:100vw; height:100vh; z-index:2; display:block; pointer-events:none; }
@@ -31,14 +23,22 @@
 
     #overlay { position: fixed; inset:0; display:grid; place-items:center; background: radial-gradient(ellipse at center, rgba(0,0,0,.75), rgba(0,0,0,.95)); color:#e9f3ff; text-align:center; image-rendering: pixelated; z-index: 7; }
     #overlay .card { background:#001830; border:2px solid #7ecbff; box-shadow: inset -6px -6px 0 #003b8e, inset 6px 6px 0 #7ecbff; text-transform: uppercase; letter-spacing:.5px; padding:24px 28px; max-width:520px; }
-
-    .pxbtn{ background:#2ad1ff; color:#062030; border:2px solid #7ecbff; padding:12px 18px; cursor:pointer; box-shadow: inset -4px -4px 0 #003b8e, inset 4px 4px 0 #7ecbff; font-weight:bold; text-transform: uppercase; letter-spacing:.5px; font-size: 16px; }
-    .pxbtn:active{ transform: translateY(1px); }
+    .divider{ width:86%; height:0; border-top:3px solid #b6dcff; margin:14px auto; opacity:.7; }
 
     #ui-topright { position:fixed; top:12px; right:12px; display:flex; gap:6px; align-items:center; z-index:6; }
     .spritebtn { width:56px; height:56px; padding:0; border:none; background:transparent; cursor:pointer; image-rendering: pixelated; display:inline-flex; align-items:center; justify-content:center; }
     .spritebtn img{ width:100%; height:100%; display:block; image-rendering: pixelated; }
     .spritebtn:active { transform: translateY(1px); }
+    #shareBtn{ display:none; }
+
+    /* Botones de imagen (modales) */
+    .imgbtn{ background:transparent; border:0; padding:0; cursor:pointer; }
+    .imgbtn img{ display:block; image-rendering:pixelated; width: min(220px, 58vw); height:auto; margin:3px auto; } /* margen reducido */
+
+    /* escalado de botones del modal */
+    .btn70{ transform:scale(.7); transform-origin:center; display:inline-block; }
+    .btn60{ transform:scale(.6); transform-origin:center; display:inline-block; }
+    .btnCol{ display:flex; flex-direction:column; align-items:center; gap:0; } /* sin separación */
 
     #infoOverlay { position:fixed; inset:0; background: radial-gradient(ellipse at center, rgba(0,0,0,.75), rgba(0,0,0,.95)); color:#e9f3ff; display:none; place-items:center; text-align:center; z-index: 7; }
     #infoOverlay .card { background:#001830; border:2px solid #7ecbff; box-shadow: inset -6px -6px 0 #003b8e, inset 6px 6px 0 #7ecbff; text-transform: uppercase; letter-spacing:.5px; padding:24px 28px; max-width:520px; }
@@ -49,60 +49,76 @@
     @media (pointer: coarse), (max-width: 820px) { #logoHUD{ height:48px; } }
 
     /* Ocultar instrucciones en mobile */
-    @media (pointer: coarse), (max-width: 820px) { #ui { display:none; } #fsBtn { display:none; } }
+    @media (pointer: coarse), (max-width: 820px) { #ui { display:none; } #fsBtn { display:none; } #shareBtn{ display:inline-flex; } }
 
-    /* "Inmersivo" como fallback si fullscreen está bloqueado */
+    /* Modo inmersivo */
     body.immersive #ui-topright { opacity: 0.25; transition: opacity .2s; }
     body.immersive #ui-topright:hover { opacity: 1; }
-    body.immersive #overlay { backdrop-filter: none; }
   </style>
 </head>
 <body>
+  <!-- CANVASES -->
   <canvas id="bgCanvas"></canvas>
   <canvas id="gameCanvas"></canvas>
   <canvas id="fxCanvas"></canvas>
   <canvas id="hudCanvas"></canvas>
 
+  <!-- LOGO SUPERIOR IZQUIERDA (abre créditos) -->
   <div id="ui-topleft">
     <img id="logoHUD" alt="La Expedición" src="https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/logo.png" />
   </div>
 
+  <!-- INSTRUCCIONES SUPERIORES -->
   <div id="ui">
     <div id="hint">MOVER: ↑/↓ | CAPTURAR: <span class="keycap">SPACE</span></div>
   </div>
+
+  <!-- BOTONES SUPERIORES DERECHA -->
   <div id="ui-topright">
     <button id="muteBtn" class="spritebtn" title="Mute" aria-label="Mute"></button>
-    <button id="infoBtn" class="spritebtn" title="Créditos" aria-label="Créditos"></button>
+    <button id="infoBtn" class="spritebtn" title="Menú" aria-label="Menú"></button>
     <button id="fsBtn" class="spritebtn" title="Fullscreen" aria-label="Fullscreen"></button>
+    <button id="shareBtn" class="spritebtn" title="Compartir" aria-label="Compartir"></button>
   </div>
+
+  <!-- MODAL PRINCIPAL / GAME OVER / PAUSA (abre con infoBtn) -->
   <div id="overlay">
     <div class="card">
       <img id="brandLogo" alt="La Expedición" src="https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/logo.png" style="height:72px; image-rendering:pixelated; display:block; margin:0 auto 10px;"/>
       <h1 id="gameOverTitle" style="display:none;">LA EXPEDICIÓN</h1>
+
       <p id="final">Captura tantos especímenes del Cañón de Mar del Plata como puedas</p>
+
       <div id="finalStats" style="display:none; font-size:14px; line-height:20px; font-weight:bold;">
         <div id="statScore">SCORE: 0</div>
         <div id="statDepth">DEPTH: 0 m</div>
         <div id="statSpecimens">SPECIMENS: 0</div>
       </div>
-      <!-- Extras del menú principal -->
+
+      <!-- Botones principales ANTES de la división -->
+      <div id="primaryBtns" class="btnCol">
+        <button id="start" class="imgbtn btn70" aria-label="Sumergirse"></button>
+        <button id="restart" class="imgbtn btn70" style="display:none;" aria-label="Reintentar"></button>
+      </div>
+
+      <div id="menuDivider" class="divider" style="display:none;"></div>
+
+      <!-- Extras debajo de la división -->
       <div id="mainExtras" style="display:none; font-size:14px; line-height:20px; margin:12px 0 6px 0;">
-        <div id="recordLine">RECORD: 0</div>
         <div>creado por <b>@balta.zr</b></div>
-        <div style="margin-top:12px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-          <button id="shareBtn" class="pxbtn">Compartir</button>
-          <a id="donateBtn" class="pxbtn" href="https://cafecito.app/soybalta" target="_blank" rel="noopener">Donar</a>
+        <div class="donateWrap" style="margin-top:6px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+          <a id="donateBtn" class="imgbtn btn60" href="https://cafecito.app/soybalta" target="_blank" rel="noopener" style="margin-top:2px;margin-bottom:2px;"></a>
         </div>
       </div>
-      <button id="start" class="pxbtn">Sumergirse</button>
-      <button id="restart" class="pxbtn" style="display:none;">Reintentar</button>
     </div>
   </div>
+
+  <!-- MODAL CRÉDITOS (abre con logo) -->
   <div id="infoOverlay">
     <div class="card">
       <h1>CRÉDITOS</h1>
       <p style="margin: 18px 0; line-height: 1.8;">• Idea, desarrollo y música: <b>@Balta.zr</b></p>
-      <button id="closeInfo" class="pxbtn">Cerrar</button>
+      <button id="closeInfo" class="imgbtn" aria-label="Salir"></button>
     </div>
   </div>
 
@@ -111,311 +127,245 @@
   'use strict';
   // ========= Helpers =========
   function makeDataUrl(svg){ return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg); }
-  function svgBtn(inner){
-    var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'>"+
-              "<defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'>"+
-              "<stop offset='0' stop-color='#5aa4ff'/>"+
-              "<stop offset='1' stop-color='#2b58a6'/></linearGradient></defs>"+
-              "<rect x='2' y='2' width='52' height='52' rx='8' ry='8' fill='url(#g)' stroke='#0b214b' stroke-width='3'/>"+
-              "<g transform='translate(28,28)'>"+ inner +"</g></svg>";
-    return makeDataUrl(svg);
-  }
-
-  // ========= Refs =========
-  const bgCanvas = document.getElementById('bgCanvas');
-  const bgCtx = bgCanvas.getContext('2d');
-  const cvs = document.getElementById('gameCanvas');
-  const ctx = cvs.getContext('2d');
-  const fxCanvas = document.getElementById('fxCanvas');
-  const fx = fxCanvas.getContext('2d');
-  const hudCanvas = document.getElementById('hudCanvas');
-  const hud = hudCanvas.getContext('2d');
-
-  const overlay = document.getElementById('overlay');
-  const startBtn = document.getElementById('start');
-  const restartBtn = document.getElementById('restart');
-  const titleEl = document.getElementById('gameOverTitle');
-  const brandLogo = document.getElementById('brandLogo');
-  const finalP = document.getElementById('final');
-  const finalStats = document.getElementById('finalStats');
-  const statScore = document.getElementById('statScore');
-  const statDepth = document.getElementById('statDepth');
-  const statSpecimens = document.getElementById('statSpecimens');
-  const muteBtn = document.getElementById('muteBtn');
-  const infoBtn = document.getElementById('infoBtn');
-  const fsBtn   = document.getElementById('fsBtn');
-  const infoOverlay = document.getElementById('infoOverlay');
-  const closeInfo  = document.getElementById('closeInfo');
-  const logoHUD   = document.getElementById('logoHUD');
-  const mainExtras = document.getElementById('mainExtras');
-  const recordLine = document.getElementById('recordLine');
-  const shareBtn   = document.getElementById('shareBtn');
-
-  // ========= UI Sprites =========
-  const KEY_SPRITE_URL = 'https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/keyboard.png';
-  const BTN_SPRITE_URL = 'https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/ui-buttons.png';
-  let keyUpURL=null, keyDownURL=null, keySpaceURL=null;
-  let icoMuteURL=null, icoInfoURL=null, icoFSURL=null;
-
-  function cropToDataURL(img, x0, x1){
-    const w = Math.max(1, (x1 - x0 + 1)|0); const h = img.height|0;
-    const c = document.createElement('canvas'); c.width=w; c.height=h;
-    const c2 = c.getContext('2d'); c2.imageSmoothingEnabled=false;
-    c2.drawImage(img, x0, 0, w, h, 0, 0, w, h);
-    return c.toDataURL('image/png');
-  }
   function loadImage(url, cb){ const im=new Image(); im.crossOrigin='anonymous'; im.onload=()=>cb(im); im.onerror=()=>cb(null); im.src=url; }
+  function cropToDataURL(img, x0, x1){ const w=Math.max(1,(x1-x0+1)|0), h=img.height|0; const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.imageSmoothingEnabled=false; g.drawImage(img,x0,0,w,h,0,0,w,h); return c.toDataURL('image/png'); }
 
-  loadImage(KEY_SPRITE_URL, function(img){
-    if(!img) return;
-    keyUpURL    = cropToDataURL(img, 1, 28);
-    keySpaceURL = cropToDataURL(img, 29, 80);
-    keyDownURL  = cropToDataURL(img, 81, img.width-1);
-    refreshHint();
-  });
-  loadImage(BTN_SPRITE_URL, function(img){
-    if(!img){ refreshIcons(); return; }
-    // Cortamos por X y ancho exactos (evita off-by-one)
-    var h = img.height;
-    function slice(x,w){ const c=document.createElement('canvas'); c.width=w; c.height=h; const cx=c.getContext('2d'); cx.imageSmoothingEnabled=false; cx.drawImage(img, x, 0, w, h, 0, 0, w, h); return c.toDataURL('image/png'); }
-    // Posiciones provistas: 0, 49, 94. Anchos: 49, 45, 46.
-    icoMuteURL = slice(0,49);
-    icoInfoURL = slice(49,45);
-    icoFSURL   = slice(94,46);
-    refreshIcons();
-  });
+  // ========= Canvases =========
+  const bgCanvas=document.getElementById('bgCanvas'), bgCtx=bgCanvas.getContext('2d');
+  const cvs=document.getElementById('gameCanvas'), ctx=cvs.getContext('2d');
+  const fxCanvas=document.getElementById('fxCanvas'), fx=fxCanvas.getContext('2d');
+  const hudCanvas=document.getElementById('hudCanvas'), hud=hudCanvas.getContext('2d');
 
-  function refreshHint(){ const hint=document.getElementById('hint'); if(!hint || !keyUpURL) return; hint.innerHTML = "MOVER: <img alt='up' style='height:22px;image-rendering:pixelated' src='"+keyUpURL+"'/>/"+
-                       "<img alt='down' style='height:22px;image-rendering:pixelated' src='"+keyDownURL+"'/> | "+
-                       "CAPTURAR: <img alt='space' style='height:22px;image-rendering:pixelated' src='"+keySpaceURL+"'/>"; }
+  // ========= UI Refs =========
+  const overlay=document.getElementById('overlay');
+  const startBtn=document.getElementById('start');
+  const restartBtn=document.getElementById('restart');
+  const titleEl=document.getElementById('gameOverTitle');
+  const brandLogo=document.getElementById('brandLogo');
+  const finalP=document.getElementById('final');
+  const finalStats=document.getElementById('finalStats');
+  const statScore=document.getElementById('statScore');
+  const statDepth=document.getElementById('statDepth');
+  const statSpecimens=document.getElementById('statSpecimens');
+  const muteBtn=document.getElementById('muteBtn');
+  const infoBtn=document.getElementById('infoBtn');
+  const fsBtn=document.getElementById('fsBtn');
+  const shareBtn=document.getElementById('shareBtn');
+  const infoOverlay=document.getElementById('infoOverlay');
+  const closeInfo=document.getElementById('closeInfo');
+  const logoHUD=document.getElementById('logoHUD');
+  const mainExtras=document.getElementById('mainExtras');
+  const donateBtn=document.getElementById('donateBtn');
 
-  // ========= Icons (fallback SVG if sprites missing) =========
-  const iconSpeakerOn  = svgBtn("<path d='M-9,-8 h6 l8,-6 v28 l-8,-6 h-6 z' fill='#0b214b'/>"+
-                                "<path d='M6,-6 q6,6 0,12' fill='none' stroke='#0b214b' stroke-width='3' stroke-linecap='round'/>"+
-                                "<path d='M10,-10 q10,10 0,20' fill='none' stroke='#0b214b' stroke-width='3' stroke-linecap='round'/>");
-  const iconSpeakerOff = svgBtn("<path d='M-9,-8 h6 l8,-6 v28 l-8,-6 h-6 z' fill='#0b214b'/>"+
-                                "<path d='M6,-10 L14,8' stroke='#0b214b' stroke-width='4' stroke-linecap='round'/>"+
-                                "<path d='M14,-10 L6,8' stroke='#0b214b' stroke-width='4' stroke-linecap='round'/>");
-  const iconInfo       = svgBtn("<circle r='10' fill='#0b214b'/>"+
-                                "<text x='0' y='6' text-anchor='middle' font-family='monospace' font-size='20' fill='#5aa4ff'>?</text>");
+  // ========= Sprites (UI y teclado) =========
+  const KEY_SPRITE_URL='https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/keyboard.png';
+  const BTN_SPRITE_URL='https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/blue-buttons.png';
+  const MODAL_BTN_URL='https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/gray-buttons.png';
+  let keyUpURL=null,keyDownURL=null,keySpaceURL=null; let icoMuteURL=null,icoInfoURL=null,icoFSURL=null,icoShareURL=null; let grayExitURL=null,grayContinueURL=null,grayDiveURL=null,grayRetryURL=null,grayDonateURL=null;
+
+  function refreshHint(){ const hint=document.getElementById('hint'); if(!hint||!keyUpURL) return; hint.innerHTML="MOVER: <img alt='up' style='height:22px;image-rendering:pixelated' src='"+keyUpURL+"'/>/"+
+      "<img alt='down' style='height:22px;image-rendering:pixelated' src='"+keyDownURL+"'/> | "+
+      "CAPTURAR: <img alt='space' style='height:22px;image-rendering:pixelated' src='"+keySpaceURL+"'/>"; }
+
+  loadImage(KEY_SPRITE_URL, function(img){ if(!img) return; keyUpURL=cropToDataURL(img,1,28); keySpaceURL=cropToDataURL(img,29,80); keyDownURL=cropToDataURL(img,81,img.width-1); refreshHint(); });
+  loadImage(BTN_SPRITE_URL, function(img){ if(!img){ refreshIcons(); return; } const h=img.height; function slice(x,w){ const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.imageSmoothingEnabled=false; g.drawImage(img,x,0,w,h,0,0,w,h); return c.toDataURL('image/png'); }
+    icoMuteURL=slice(0,45); icoInfoURL=slice(46,45); icoFSURL=slice(91,45); icoShareURL=slice(136,45); refreshIcons(); });
+  loadImage(MODAL_BTN_URL, function(img){ if(!img) return; const w=img.width; function sliceY(y0,y1){ const h=(y1-y0+1)|0; const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.imageSmoothingEnabled=false; g.drawImage(img,0,y0,w,h,0,0,w,h); return c.toDataURL('image/png'); }
+    grayExitURL=sliceY(0,83); grayContinueURL=sliceY(84,166); grayDiveURL=sliceY(167,249); grayRetryURL=sliceY(250,332); grayDonateURL=sliceY(334,431); setModalButtons(false); });
+
+  const iconSpeakerOn = makeDataUrl("<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'>"+
+    "<defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#5aa4ff'/><stop offset='1' stop-color='#2b58a6'/></linearGradient></defs>"+
+    "<rect x='2' y='2' width='52' height='52' rx='8' ry='8' fill='url(#g)' stroke='#0b214b' stroke-width='3'/>"+
+    "<g transform='translate(28,28)'><path d='M-9,-8 h6 l8,-6 v28 l-8,-6 h-6 z' fill='#0b214b'/><path d='M6,-6 q6,6 0,12' fill='none' stroke='#0b214b' stroke-width='3' stroke-linecap='round'/><path d='M10,-10 q10,10 0,20' fill='none' stroke='#0b214b' stroke-width='3' stroke-linecap='round'/></g></svg>");
+  const iconInfo = makeDataUrl("<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#5aa4ff'/><stop offset='1' stop-color='#2b58a6'/></linearGradient></defs><rect x='2' y='2' width='52' height='52' rx='8' ry='8' fill='url(#g)' stroke='#0b214b' stroke-width='3'/><g transform='translate(28,28)'><circle r='10' fill='#0b214b'/><text x='0' y='6' text-anchor='middle' font-family='monospace' font-size='20' fill='#5aa4ff'>?</text></g></svg>");
   function refreshIcons(){
-    const muteBtn=document.getElementById('muteBtn'); const infoBtn=document.getElementById('infoBtn'); const fsBtn=document.getElementById('fsBtn');
-    // Usamos el mismo icono para mute on/off y variamos opacidad cuando está silenciado
-    muteBtn.innerHTML = '<img alt="mute" style="image-rendering:pixelated" src="'+(icoMuteURL|| (S.isMuted()?iconSpeakerOff:iconSpeakerOn))+'" />';
-    infoBtn.innerHTML = '<img alt="info" style="image-rendering:pixelated" src="'+(icoInfoURL||iconInfo)+'" />';
-    if(icoFSURL) fsBtn.innerHTML = '<img alt="fullscreen" style="image-rendering:pixelated" src="'+icoFSURL+'" />';
-    muteBtn.style.opacity = S.isMuted()?0.35:1;
+    muteBtn.innerHTML='<img alt="mute" src="'+(icoMuteURL||iconSpeakerOn)+'" />';
+    infoBtn.innerHTML='<img alt="info" src="'+(icoInfoURL||iconInfo)+'" />';
+    if(icoFSURL) fsBtn.innerHTML='<img alt="fullscreen" src="'+icoFSURL+'" />';
+    if(shareBtn && icoShareURL) shareBtn.innerHTML='<img alt="share" src="'+icoShareURL+'" />';
+    muteBtn.style.opacity=S.isMuted()?0.35:1;
   }
+  function setModalButtons(fromPause){ if(grayDiveURL){ startBtn.innerHTML='<img alt="'+(fromPause?'Continuar':'Sumergirse')+'" src="'+(fromPause?grayContinueURL:grayDiveURL)+'" />'; } if(grayRetryURL){ restartBtn.innerHTML='<img alt="Reintentar" src="'+grayRetryURL+'" />'; } if(grayExitURL){ closeInfo.innerHTML='<img alt="Salir" src="'+grayExitURL+'" />'; } if(grayDonateURL&&donateBtn){ donateBtn.innerHTML='<img alt="Donar" src="'+grayDonateURL+'" />'; } }
 
   // ========= Audio =========
-  const RAW   = 'https://raw.githubusercontent.com/baltaz/the_expedition/main/sfx/';
-  const MUSIC = 'https://raw.githubusercontent.com/baltaz/the_expedition/main/music/the%20expedition.mp3';
-  const S = (function(){
-    var created=false; var a={}; var _muted=false;
-    var srcMap = { fire: RAW+'sfx_fire.mp3', lose: RAW+'sfx_lose.mp3', gameover: RAW+'sfx_gameover.mp3', music: MUSIC };
-    function init(){ if(created) return; created=true; for(var k in srcMap){ var el=new Audio(srcMap[k]); el.preload='auto'; if(k==='music'){ el.loop=true; el.volume=0.35; } else { el.volume=0.7; } a[k]=el; } }
-    function play(k){ var el=a[k]; if(!el) return; try{ el.currentTime=0; el.play(); }catch(e){} }
-    function loop(k){ var el=a[k]; if(!el) return; if(el.paused){ try{ el.play(); }catch(e){} } }
-    function stop(k){ var el=a[k]; if(!el) return; try{ el.pause(); el.currentTime=0; }catch(e){} }
-    function pause(k){ var el=a[k]; if(!el) return; try{ el.pause(); }catch(e){} }
-    function setMuted(m){ for(var k in a){ try{ a[k].muted=!!m; }catch(e){} } _muted=!!m; }
+  const RAW='https://raw.githubusercontent.com/baltaz/the_expedition/main/sfx/';
+  const MUSIC='https://raw.githubusercontent.com/baltaz/the_expedition/main/music/the%20expedition.mp3';
+  const S=(function(){ let created=false; const a={}; let _muted=false; const srcMap={ fire:RAW+'sfx_fire.mp3', lose:RAW+'sfx_lose.mp3', gameover:RAW+'sfx_gameover.mp3', music:MUSIC };
+    function init(){ if(created) return; created=true; for(const k in srcMap){ const el=new Audio(srcMap[k]); el.preload='auto'; if(k==='music'){ el.loop=true; el.volume=0.35; } else { el.volume=0.7; } a[k]=el; }
+    }
+    function play(k){ const el=a[k]; if(!el) return; try{ el.currentTime=0; el.play(); }catch(e){}
+    }
+    function loop(k){ const el=a[k]; if(!el) return; if(el.paused){ try{ el.play(); }catch(e){} } }
+    function stop(k){ const el=a[k]; if(!el) return; try{ el.pause(); el.currentTime=0; }catch(e){} }
+    function pause(k){ const el=a[k]; if(!el) return; try{ el.pause(); }catch(e){} }
+    function setMuted(m){ for(const k in a){ try{ a[k].muted=!!m; }catch(e){} } _muted=!!m; }
     function isMuted(){ return _muted; }
     function toggleMuted(){ setMuted(!isMuted()); }
-    function time(k){ var el=a[k]; return el ? (el.currentTime||0) : 0; }
-    return { init:init, play:play, loop:loop, stop:stop, pause:pause, setMuted:setMuted, isMuted:isMuted, toggleMuted:toggleMuted, time:time };
+    function time(k){ const el=a[k]; return el ? (el.currentTime||0) : 0; }
+    return { init, play, loop, stop, pause, setMuted, isMuted, toggleMuted, time };
   })();
 
   // ========= High Score =========
   const HS_KEY='expedicion_hiscore_v1'; let highScore=0; try{ highScore=parseInt(localStorage.getItem(HS_KEY)||'0',10)||0; }catch(e){}
-  function saveHighScore(){ try{ localStorage.setItem(HS_KEY, String(highScore)); }catch(e){} }
+  function saveHighScore(){ try{ localStorage.setItem(HS_KEY,String(highScore)); }catch(e){} }
 
   // ========= Assets =========
-  var robotImg=null, robotReady=false, spriteW=96, spriteH=64; var robotScale=2;
-  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/subastian.png', function(img){
-    if(img){ robotImg=img; robotReady=true; var targetH=64; var ratio=img.width/img.height; spriteH=targetH; spriteW=Math.round(targetH*ratio); }
-    else { robotImg=new Image(); robotImg.onload=function(){robotReady=true}; robotImg.src=makeDataUrl("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='64' viewBox='0 0 96 64'><rect width='96' height='64' fill='#1b2a3a'/><rect x='6' y='18' width='72' height='28' fill='#f6d23a' stroke='#6b4f00' stroke-width='2'/></svg>"); }
-  });
-  var creaturesImg=null, creaturesReady=false, cFrameW=0,cFrameH=0,cRows=0;
-  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/Creatures/DeepseaCreatures_spritesheet.png', function(img){ if(img){ creaturesImg=img; cFrameW=Math.floor(img.width/2); cRows=Math.max(1, Math.floor(img.height/cFrameW)); cFrameH=Math.floor(img.height/cRows); creaturesReady=true; } });
-  var bgImg=null,bgReady=false,bgOffset=0,bgW=0,bgH=0,BG_BASE_SPEED=35;
-  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/bg/bg_back.png', function(img){ if(img){ bgImg=img; bgReady=true; bgW=img.width; bgH=img.height; } });
-  var fgImg=null,fgReady=false,fgOffset=0,fgW=0,fgH=0,FG_BASE_SPEED=60;
-  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/bg/bg_front.png', function(img){ if(img){ fgImg=img; fgReady=true; fgW=img.width; fgH=img.height; } });
+  let robotImg=null, robotReady=false, spriteW=96, spriteH=64, robotScale=2;
+  loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/subastian.png', function(img){ if(img){ robotImg=img; robotReady=true; const targetH=64; const ratio=img.width/img.height; spriteH=targetH; spriteW=Math.round(targetH*ratio); } else { robotImg=new Image(); robotImg.onload=function(){robotReady=true}; robotImg.src=makeDataUrl("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='64' viewBox='0 0 96 64'><rect width='96' height='64' fill='#1b2a3a'/><rect x='6' y='18' width='72' height='28' fill='#f6d23a' stroke='#6b4f00' stroke-width='2'/></svg>"); } });
+  let creaturesImg=null, creaturesReady=false, cFrameW=0,cFrameH=0,cRows=0; loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/Creatures/DeepseaCreatures_spritesheet.png', function(img){ if(img){ creaturesImg=img; cFrameW=Math.floor(img.width/2); cRows=Math.max(1,Math.floor(img.height/cFrameW)); cFrameH=Math.floor(img.height/cRows); creaturesReady=true; } });
+  let bgImg=null,bgReady=false,bgOffset=0,bgW=0,bgH=0,BG_BASE_SPEED=35; loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/bg/bg_back.png', function(img){ if(img){ bgImg=img; bgReady=true; bgW=img.width; bgH=img.height; } });
+  let fgImg=null,fgReady=false,fgOffset=0,fgW=0,fgH=0,FG_BASE_SPEED=60; loadImage('https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/bg/bg_front.png', function(img){ if(img){ fgImg=img; fgReady=true; fgW=img.width; fgH=img.height; } });
 
   // ========= Geometry / Utils =========
-  var W=innerWidth, H=innerHeight; const LANES_N=5; var lanes=[];
-  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-  function lerp(a,b,t){ return a + (b-a)*t; }
-  function computeLanes(){ lanes.length=0; var minY=H*0.18, maxY=H*0.82; for(var i=0;i<LANES_N;i++){ var t=i/(LANES_N-1); lanes.push(minY + t*(maxY-minY)); } }
+  let W=innerWidth, H=innerHeight; const LANES_N=5; let lanes=[];
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function computeLanes(){ lanes.length=0; const minY=H*0.18, maxY=H*0.82; for(let i=0;i<LANES_N;i++){ const t=i/(LANES_N-1); lanes.push(minY+t*(maxY-minY)); }
+  }
 
   // Particles (front-most dust)
-  var particles=[]; function spawnParticle(x,y){ var r=Math.random()*2+1.2; var vy=-(10+Math.random()*25); var vx=-(8+Math.random()*22); var a=0.25+Math.random()*0.25; var tw=Math.random()*Math.PI*2; return {x:x,y:y,vx:vx,vy:vy,r:r,baseA:a,tw:tw}; }
-  function initParticles(){ particles.length=0; var density=Math.max(40, Math.min(140, Math.floor((W*H)/28000))); for(var i=0;i<density;i++) particles.push(spawnParticle(Math.random()*W, Math.random()*H)); }
-  function updateParticles(dt){ for(var i=0;i<particles.length;i++){ var p=particles[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.tw+=dt*2.0; if(p.x<-8||p.y<-8){ particles[i]=spawnParticle(W+10+Math.random()*20, H+10+Math.random()*40); } } }
-  function drawParticles(){ ctx.save(); ctx.globalCompositeOperation='lighter'; for(var i=0;i<particles.length;i++){ var p=particles[i]; var alpha=p.baseA*(0.65+0.35*Math.sin(p.tw)); ctx.globalAlpha=alpha; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle='#cfe9ff'; ctx.fill(); } ctx.globalAlpha=1; ctx.restore(); }
-
-  // Suave vaivén horizontal del robot (agua)
+  let particles=[]; function spawnParticle(x,y){ const r=Math.random()*2+1.2; const vy=-(10+Math.random()*25); const vx=-(8+Math.random()*22); const a=0.25+Math.random()*0.25; const tw=Math.random()*Math.PI*2; return {x,y,vx,vy,r,baseA:a,tw}; }
+  function initParticles(){ particles.length=0; const density=Math.max(40,Math.min(140,Math.floor((W*H)/28000))); for(let i=0;i<density;i++) particles.push(spawnParticle(Math.random()*W,Math.random()*H)); }
+  function updateParticles(dt){ for(let i=0;i<particles.length;i++){ const p=particles[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.tw+=dt*2.0; if(p.x<-8||p.y<-8){ particles[i]=spawnParticle(W+10+Math.random()*20,H+10+Math.random()*40); } }
+  }
+  function drawParticles(){ ctx.save(); ctx.globalCompositeOperation='lighter'; for(let i=0;i<particles.length;i++){ const p=particles[i]; const alpha=p.baseA*(0.65+0.35*Math.sin(p.tw)); ctx.globalAlpha=alpha; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle='#cfe9ff'; ctx.fill(); } ctx.globalAlpha=1; ctx.restore(); }
   function bobX(){ return Math.sin(state.elapsed * 2*Math.PI * 0.5) * 6; }
 
   // ========= State =========
-  var state=null, player, animals, keys={};
+  let state=null, player, animals; let keys={};
   let overlayMode='menu'; let wasRunningBeforeCredits=false;
-  var robotTilt=0, robotTiltTarget=0, MAX_TILT=Math.PI/36;
+  let robotTilt=0, robotTiltTarget=0; const MAX_TILT=Math.PI/36;
   function reset(){ state={ run:false, rescued:0, score:0, depth_s:0, lives:3, lifeAnim:0, spawn:0, speed:260, elapsed:0, inputLock:0.2,
-      lightPhase:'off', lightVisible:false, lightTimer:0, lightToggles:0, lastMusicT:0
-    }; player={ x:0.18, y:0.5, vy:0, r:26, h:null }; animals=[]; computeLanes(); }
+      lightPhase:'off', lightVisible:false, lightTimer:0, lightToggles:0, lastMusicT:0 }; player={ x:0.18, y:0.5, vy:0, r:26, h:null }; animals=[]; computeLanes(); }
 
   // ========= Difficulty / Entities =========
   function difficultyRaw(){ return state.elapsed/180; }
-  function currentSpawnPeriod(){ var p0=clamp(difficultyRaw(),0,1); var base=lerp(2.5,0.6,p0); var volume=lerp(2.0,1.0,p0); var period=base*volume; var p=difficultyRaw(); if(p>1){ period=period/(1+0.7*(p-1)); period=Math.max(0.3,period);} return period; }
-  function currentSpeed(){ var p0=clamp(difficultyRaw(),0,1); var spd=lerp(260,520,p0)*lerp(0.3,1.0,p0); var p=difficultyRaw(); if(p>1){ spd*=(1+0.5*(p-1)); } return spd; }
-  function pointsForRescue(){ var p0=clamp(difficultyRaw(),0,1); return Math.floor(lerp(100,250,p0)); }
-  function laneOccupied(idx){ for(var i=0;i<animals.length;i++){ var a=animals[i]; if(a.lane===idx && a.x>W*0.25 && !a.captured) return true; } return false; }
-  function spawnAnimal(){ var candidates=[]; for(var i=0;i<lanes.length;i++){ if(!laneOccupied(i)) candidates.push(i);} if(!candidates.length) return; var laneIndex=candidates[(Math.random()*candidates.length)|0]; var y=lanes[laneIndex]; var speed=currentSpeed(); var row=(creaturesReady&&cRows>0)?((Math.random()*cRows)|0):0; animals.push({ x:W+40,y:y,vx:-(speed+60), r:44, lane:laneIndex, captured:false, row:row, frame:0, frameTimer:0, size:96, phaseSeed:Math.random()*Math.PI*2 }); }
+  function currentSpawnPeriod(){ const p0=clamp(difficultyRaw(),0,1); let base=lerp(2.5,0.6,p0); let volume=lerp(2.0,1.0,p0); let period=base*volume; const p=difficultyRaw(); if(p>1){ period=period/(1+0.7*(p-1)); period=Math.max(0.3,period);} return period; }
+  function currentSpeed(){ const p0=clamp(difficultyRaw(),0,1); let spd=lerp(260,520,p0)*lerp(0.3,1.0,p0); const p=difficultyRaw(); if(p>1){ spd*=(1+0.5*(p-1)); } return spd; }
+  function pointsForRescue(){ const p0=clamp(difficultyRaw(),0,1); return Math.floor(lerp(100,250,p0)); }
+  function laneOccupied(idx){ for(let i=0;i<animals.length;i++){ const a=animals[i]; if(a.lane===idx && a.x>W*0.25 && !a.captured) return true; } return false; }
+  function spawnAnimal(){ const candidates=[]; for(let i=0;i<lanes.length;i++){ if(!laneOccupied(i)) candidates.push(i);} if(!candidates.length) return; const laneIndex=candidates[(Math.random()*candidates.length)|0]; const y=lanes[laneIndex]; const speed=currentSpeed(); const row=(creaturesReady&&cRows>0)?((Math.random()*cRows)|0):0; animals.push({ x:W+40,y, vx:-(speed+60), r:44, lane:laneIndex, captured:false, row, frame:0, frameTimer:0, size:96, phaseSeed:Math.random()*Math.PI*2 }); }
 
   // ========= Hook =========
-  function fire(){ if(!player || player.h || state.inputLock>0) return; var baseX=player.x*W + bobX(), baseY=player.y*H; player.h={ x:baseX,y:baseY, dx:1,dy:0, speed:1400, phase:'out', hit:null, range: W*0.7, traveled:0 }; S.play('fire'); }
+  function fire(){ if(!player || player.h || state.inputLock>0) return; const baseX=player.x*W + bobX(), baseY=player.y*H; player.h={ x:baseX,y:baseY, dx:1,dy:0, speed:1400, phase:'out', hit:null, range: W*0.7, traveled:0 }; S.play('fire'); }
 
-  // ========= Background draw =========
+  // ========= Background =========
   function drawBG(dt){
-    // BACK layer
-    if(bgReady&&bgW&&bgH){ var spd=BG_BASE_SPEED*(1+0.6*clamp(difficultyRaw(),0,2)); bgOffset=(bgOffset+spd*dt)%bgW; var ox=Math.floor(bgOffset); bgCtx.setTransform(1,0,0,1,0,0); bgCtx.clearRect(0,0,W,H); bgCtx.imageSmoothingEnabled=false; var startX=-ox-bgW; for(var x=startX; x<W+bgW; x+=bgW){ for(var y=0; y<H+bgH; y+=bgH){ bgCtx.drawImage(bgImg, Math.round(x), Math.round(y)); } } } else { bgCtx.clearRect(0,0,W,H); }
-    // FRONT reef layer
-    if(fgReady&&fgW&&fgH){ var fspd=FG_BASE_SPEED*(1+0.6*clamp(difficultyRaw(),0,2)); fgOffset=(fgOffset+fspd*dt)%fgW; var fox=Math.floor(fgOffset); var yBase=H-fgH; var startXF=-fox-fgW; for(var xx=startXF; xx<W+fgW; xx+=fgW){ bgCtx.drawImage(fgImg, Math.round(xx), Math.round(yBase)); } }
+    if(bgReady&&bgW&&bgH){ const spd=BG_BASE_SPEED*(1+0.6*clamp(difficultyRaw(),0,2)); bgOffset=(bgOffset+spd*dt)%bgW; const ox=Math.floor(bgOffset); bgCtx.setTransform(1,0,0,1,0,0); bgCtx.clearRect(0,0,W,H); bgCtx.imageSmoothingEnabled=false; let startX=-ox-bgW; for(let x=startX; x<W+bgW; x+=bgW){ for(let y=0; y<H+bgH; y+=bgH){ bgCtx.drawImage(bgImg, Math.round(x), Math.round(y)); } } } else { bgCtx.clearRect(0,0,W,H); }
+    if(fgReady&&fgW&&fgH){ const fspd=FG_BASE_SPEED*(1+0.6*clamp(difficultyRaw(),0,2)); fgOffset=(fgOffset+fspd*dt)%fgW; const fox=Math.floor(fgOffset); const yBase=H-fgH; const startXF=-fox-fgW; for(let xx=startXF; xx<W+fgW; xx+=fgW){ bgCtx.drawImage(fgImg, Math.round(xx), Math.round(yBase)); } }
   }
 
   // ========= Update =========
   function upd(dt){ if(!state||!state.run) return; state.elapsed+=dt; state.inputLock=Math.max(0,state.inputLock-dt);
-    var depthP=clamp(state.elapsed/180,0,1); var newDepth=Math.floor(lerp(0,3900,depthP)); state.depth_s=Math.max(state.depth_s,newDepth);
-    state.speed=currentSpeed();
-    // Linterna a los 81s de música
-    const LIGHT_MUSIC_T=81; var musicT=S.time('music'); if(musicT<state.lastMusicT){ state.lightPhase='off'; state.lightVisible=false; state.lightTimer=0; state.lightToggles=0; }
+    const depthP=clamp(state.elapsed/180,0,1); const newDepth=Math.floor(lerp(0,3900,depthP)); state.depth_s=Math.max(state.depth_s,newDepth); state.speed=currentSpeed();
+    const LIGHT_MUSIC_T=81; const musicT=S.time('music'); if(musicT<state.lastMusicT){ state.lightPhase='off'; state.lightVisible=false; state.lightTimer=0; state.lightToggles=0; }
     if(musicT>=LIGHT_MUSIC_T){ if(state.lightPhase==='off'){ state.lightPhase='flicker'; state.lightVisible=true; state.lightTimer=0.1; state.lightToggles=0; } else if(state.lightPhase==='flicker'){ state.lightTimer-=dt; if(state.lightTimer<=0){ state.lightVisible=!state.lightVisible; state.lightToggles++; state.lightTimer+=0.1; if(state.lightToggles>=4){ state.lightPhase='on'; state.lightVisible=true; } } } else { state.lightVisible=true; } } else { state.lightPhase='off'; state.lightVisible=false; state.lightTimer=0; state.lightToggles=0; }
     state.lastMusicT=musicT;
 
-    var up=!!keys['ArrowUp'], down=!!keys['ArrowDown'];
-    if(dragActive){ var targetYpx=clamp(dragY, H*0.1, H*0.9); var dy=targetYpx-(player.y*H); var sp=Math.sign(dy)*(450*Math.log(1+Math.abs(dy)/24)); player.y=clamp(player.y+(sp*dt)/H,0.1,0.9); robotTiltTarget = dy < -4 ? -MAX_TILT : (dy>4 ? MAX_TILT : 0); }
+    const up=!!keys['ArrowUp'], down=!!keys['ArrowDown'];
+    if(dragActive){ const targetYpx=clamp(dragY,H*0.1,H*0.9); const dy=targetYpx-(player.y*H); const sp=Math.sign(dy)*(450*Math.log(1+Math.abs(dy)/24)); player.y=clamp(player.y+(sp*dt)/H,0.1,0.9); robotTiltTarget = dy < -4 ? -MAX_TILT : (dy>4 ? MAX_TILT : 0); }
     else { player.vy=up?-400:down?400:0; player.y=clamp(player.y+(player.vy*dt/H),0.1,0.9); robotTiltTarget = up ? -MAX_TILT : (down ? MAX_TILT : 0); }
     robotTilt += (robotTiltTarget - robotTilt) * Math.min(1, 8*dt);
+
     if(keys[' ']&&state.inputLock===0){ if(!player.h){ fire(); } else if(player.h.phase==='out'){ player.h.phase='return'; } keys[' ']=false; }
-    for(var i=animals.length-1;i>=0;i--){ var a=animals[i]; a.x+=a.vx*dt; a.frameTimer+=dt; if(a.frameTimer>=0.2){ a.frameTimer-=0.2; a.frame^=1; } if(!a.captured && a.x<-a.r){ animals.splice(i,1); var before=state.lives; if(state.lives>0) state.lives--; if(state.lives<before){ state.lifeAnim=0.6; S.play('lose'); } if(state.lives<=0) end(); } }
-    if(player.h){ var h=player.h, spd=h.speed; if(h.phase==='out'){ h.x+=h.dx*spd*dt; h.traveled+=spd*dt; for(var j=0;j<animals.length;j++){ var aa=animals[j]; if(!h.hit && !aa.captured && Math.hypot(aa.x-h.x,aa.y-h.y)<aa.r+8){ h.hit=aa; aa.captured=true; break; } } if(h.hit || h.traveled>=h.range) h.phase='return'; } else { h.x-=h.dx*spd*dt; var targetY=player.y*H; h.y += (targetY - h.y) * Math.min(1, 6*dt); h.traveled=Math.max(0,h.traveled-spd*dt); if(h.hit){ h.hit.x=h.x; h.hit.y=h.y; } if(h.traveled<=0){ if(h.hit){ state.rescued++; state.score+=pointsForRescue(); var idx=animals.indexOf(h.hit); if(idx!==-1) animals.splice(idx,1);} player.h=null; } } }
+
+    for(let i=animals.length-1;i>=0;i--){ const a=animals[i]; a.x+=a.vx*dt; a.frameTimer+=dt; if(a.frameTimer>=0.2){ a.frameTimer-=0.2; a.frame^=1; } if(!a.captured && a.x<-a.r){ animals.splice(i,1); const before=state.lives; if(state.lives>0) state.lives--; if(state.lives<before){ state.lifeAnim=0.6; S.play('lose'); } if(state.lives<=0) end(); } }
+
+    if(player.h){ const h=player.h, spd=h.speed; if(h.phase==='out'){ h.x+=h.dx*spd*dt; h.traveled+=spd*dt; for(let j=0;j<animals.length;j++){ const aa=animals[j]; if(!h.hit && !aa.captured && Math.hypot(aa.x-h.x,aa.y-h.y)<aa.r+8){ h.hit=aa; aa.captured=true; break; } } if(h.hit || h.traveled>=h.range) h.phase='return'; }
+      else { h.x-=h.dx*spd*dt; const targetY=player.y*H; h.y += (targetY - h.y) * Math.min(1, 6*dt); h.traveled=Math.max(0,h.traveled-spd*dt); if(h.hit){ h.hit.x=h.x; h.hit.y=h.y; } if(h.traveled<=0){ if(h.hit){ state.rescued++; state.score+=pointsForRescue(); const idx=animals.indexOf(h.hit); if(idx!==-1) animals.splice(idx,1);} player.h=null; } } }
+
     state.lifeAnim=Math.max(0,state.lifeAnim-dt); state.spawn-=dt; if(state.spawn<=0){ spawnAnimal(); state.spawn=currentSpawnPeriod(); }
   }
 
   // ========= Draw =========
-  function draw(){
-    // world
-    ctx.clearRect(0,0,W,H);
-    for(var i=0;i<animals.length;i++){ var a=animals[i]; var floatOffset=Math.sin(Math.PI*state.elapsed + a.phaseSeed)*5; if(creaturesReady&&cRows>0){ var sx=(a.frame%2)*cFrameW, sy=(a.row%cRows)*cFrameH; ctx.imageSmoothingEnabled=false; ctx.drawImage(creaturesImg, sx,sy,cFrameW,cFrameH, Math.round(a.x-a.size/2), Math.round(a.y+floatOffset-a.size/2), a.size,a.size); ctx.imageSmoothingEnabled=true; } else { ctx.fillStyle='#ffd95e'; ctx.beginPath(); ctx.arc(a.x,a.y+floatOffset,a.r,0,Math.PI*2); ctx.fill(); } }
-    if(player){ var px=player.x*W + bobX(), py=player.y*H; ctx.save(); ctx.translate(px,py); ctx.rotate(robotTilt); if(robotReady){ ctx.imageSmoothingEnabled=false; var dw=spriteW*robotScale, dh=spriteH*robotScale; ctx.drawImage(robotImg, Math.round(-dw/2), Math.round(-dh/2), dw, dh); ctx.imageSmoothingEnabled=true; } else { ctx.fillStyle='#7ef'; ctx.beginPath(); ctx.arc(0,0,player.r,0,Math.PI*2); ctx.fill(); } ctx.restore(); }
-    if(player&&player.h){ ctx.strokeStyle='#8ff'; ctx.beginPath(); var hx0=player.x*W + bobX(), hy0=player.y*H; ctx.moveTo(hx0,hy0); ctx.lineTo(player.h.x, player.h.y); ctx.stroke(); ctx.fillStyle='#8ff'; ctx.beginPath(); ctx.arc(player.h.x, player.h.y, 6, 0, Math.PI*2); ctx.fill(); }
-    drawParticles();
+  function draw(){ ctx.clearRect(0,0,W,H);
+    for(let i=0;i<animals.length;i++){ const a=animals[i]; const floatOffset=Math.sin(Math.PI*state.elapsed + a.phaseSeed)*5; if(creaturesReady&&cRows>0){ const sx=(a.frame%2)*cFrameW, sy=(a.row%cRows)*cFrameH; ctx.imageSmoothingEnabled=false; ctx.drawImage(creaturesImg,sx,sy,cFrameW,cFrameH, Math.round(a.x-a.size/2), Math.round(a.y+floatOffset-a.size/2), a.size,a.size); ctx.imageSmoothingEnabled=true; } else { ctx.fillStyle='#ffd95e'; ctx.beginPath(); ctx.arc(a.x,a.y+floatOffset,a.r,0,Math.PI*2); ctx.fill(); } }
+    if(player){ const px=player.x*W + bobX(), py=player.y*H; ctx.save(); ctx.translate(px,py); ctx.rotate(robotTilt); if(robotReady){ ctx.imageSmoothingEnabled=false; const dw=spriteW*robotScale, dh=spriteH*robotScale; ctx.drawImage(robotImg, Math.round(-dw/2), Math.round(-dh/2), dw, dh); ctx.imageSmoothingEnabled=true; } else { ctx.fillStyle='#7ef'; ctx.beginPath(); ctx.arc(0,0,player.r,0,Math.PI*2); ctx.fill(); } ctx.restore(); }
+    if(player&&player.h){ ctx.strokeStyle='#8ff'; ctx.beginPath(); const hx0=player.x*W + bobX(), hy0=player.y*H; ctx.moveTo(hx0,hy0); ctx.lineTo(player.h.x, player.h.y); ctx.stroke(); ctx.fillStyle='#8ff'; ctx.beginPath(); ctx.arc(player.h.x, player.h.y, 6, 0, Math.PI*2); ctx.fill(); }
+    drawParticles(); drawLightMask(); drawHUD(); }
 
-    // darkness mask on fxCanvas (not affecting HUD)
-    drawLightMask();
+  function drawLightMask(){ fx.clearRect(0,0,W,H); const alpha=lerp(0,0.9, clamp((state?state.elapsed:0)/180,0,1)); if(alpha<=0.001) return; fx.globalCompositeOperation='source-over'; fx.fillStyle='rgba(0,0,0,'+alpha.toFixed(3)+')'; fx.fillRect(0,0,W,H);
+    if(state && state.lightVisible && player){ const px=player.x*W + bobX(), py=player.y*H; const ang=robotTilt; const ux=Math.cos(ang), uy=Math.sin(ang); const vx=-Math.sin(ang), vy=Math.cos(ang); const ax=Math.round(px + ux*(spriteW*robotScale*0.5 - 11) + vx*(-4)); const ay=Math.round(py + uy*(spriteW*robotScale*0.5 - 11) + vy*(-4)); const L=Math.min(W*0.65,560); const theta=Math.PI/9; const endx=ax+ux*L, endy=ay+uy*L; const half=Math.tan(theta)*L; const pTopX=endx+vx*half, pTopY=endy+vy*half; const pBotX=endx-vx*half, pBotY=endy-vy*half; let g=fx.createLinearGradient(ax,ay,endx,endy); g.addColorStop(0.00,'rgba(255,255,255,1.0)'); g.addColorStop(0.45,'rgba(255,255,255,0.5)'); g.addColorStop(1.00,'rgba(255,255,255,0.0)'); fx.globalCompositeOperation='destination-out'; fx.fillStyle=g; fx.beginPath(); fx.moveTo(ax,ay); fx.lineTo(pTopX,pTopY); fx.lineTo(pBotX,pBotY); fx.closePath(); fx.fill(); const rg=fx.createRadialGradient(ax,ay,0, ax,ay,54); rg.addColorStop(0,'rgba(255,255,255,1.0)'); rg.addColorStop(1,'rgba(255,255,255,0.0)'); fx.fillStyle=rg; fx.beginPath(); fx.arc(ax,ay,54,0,Math.PI*2); fx.fill(); fx.globalCompositeOperation='lighter'; const gGlow=fx.createLinearGradient(ax,ay,endx,endy); gGlow.addColorStop(0.00,'rgba(255,255,255,0.14)'); gGlow.addColorStop(0.60,'rgba(255,255,255,0.06)'); gGlow.addColorStop(1.00,'rgba(255,255,255,0.00)'); fx.fillStyle=gGlow; fx.beginPath(); fx.moveTo(ax,ay); fx.lineTo(pTopX,pTopY); fx.lineTo(pBotX,pBotY); fx.closePath(); fx.fill(); fx.globalCompositeOperation='source-over'; } }
 
-    // HUD on top canvas
-    drawHUD();
-  }
-
-  function drawLightMask(){
-    fx.clearRect(0,0,W,H);
-    // darkness amount grows with time/depth (0..0.9)
-    var alpha = lerp(0,0.9, clamp((state?state.elapsed:0)/180,0,1));
-    if(alpha<=0.001){ return; }
-    fx.globalCompositeOperation='source-over';
-    fx.fillStyle='rgba(0,0,0,'+alpha.toFixed(3)+')';
-    fx.fillRect(0,0,W,H);
-
-    if(state && state.lightVisible && player){
-      // Carve the cone out of the darkness with soft edges
-      var px=player.x*W + bobX(), py=player.y*H; var ang=robotTilt; var ux=Math.cos(ang), uy=Math.sin(ang); var vx=-Math.sin(ang), vy=Math.cos(ang);
-      var ax=Math.round(px + ux*(spriteW*robotScale*0.5 - 11) + vx*(-4));
-      var ay=Math.round(py + uy*(spriteW*robotScale*0.5 - 11) + vy*(-4));
-      var L=Math.min(W*0.65,560); var theta=Math.PI/9; var endx=ax+ux*L, endy=ay+uy*L; var half=Math.tan(theta)*L;
-      var pTopX=endx+vx*half, pTopY=endy+vy*half; var pBotX=endx-vx*half, pBotY=endy-vy*half;
-
-      // Create a gradient aligned with cone length (opaque removal near robot, fades to 0 at far end)
-      var g = fx.createLinearGradient(ax,ay,endx,endy);
-      // Más "blanca": quitamos parte de la caída intermedia para que el recorte sea más intenso
-      g.addColorStop(0.00,'rgba(255,255,255,1.0)');
-      g.addColorStop(0.45,'rgba(255,255,255,0.5)');
-      g.addColorStop(1.00,'rgba(255,255,255,0.0)');
-      fx.globalCompositeOperation='destination-out';
-      fx.fillStyle=g;
-      fx.beginPath(); fx.moveTo(ax,ay); fx.lineTo(pTopX,pTopY); fx.lineTo(pBotX,pBotY); fx.closePath(); fx.fill();
-
-      // Soft halo at the source (radial) to blur the base
-      var rg = fx.createRadialGradient(ax,ay,0, ax,ay, 54);
-      rg.addColorStop(0,'rgba(255,255,255,1.0)');
-      rg.addColorStop(1,'rgba(255,255,255,0.0)');
-      fx.fillStyle=rg; fx.beginPath(); fx.arc(ax,ay,54,0,Math.PI*2); fx.fill();
-
-      // Añadimos una pasada aditiva muy sutil para "blanquear" lo iluminado
-      fx.globalCompositeOperation='lighter';
-      var gGlow = fx.createLinearGradient(ax,ay,endx,endy);
-      gGlow.addColorStop(0.00,'rgba(255,255,255,0.14)');
-      gGlow.addColorStop(0.60,'rgba(255,255,255,0.06)');
-      gGlow.addColorStop(1.00,'rgba(255,255,255,0.00)');
-      fx.fillStyle=gGlow; fx.beginPath(); fx.moveTo(ax,ay); fx.lineTo(pTopX,pTopY); fx.lineTo(pBotX,pBotY); fx.closePath(); fx.fill();
-
-      fx.globalCompositeOperation='source-over';
-    }
-  }
-
-  function drawHUD(){
-    hud.clearRect(0,0,W,H);
-    var depthVal=Math.floor(state?state.depth_s:0), scoreVal=state?state.score:0, livesVal=state?state.lives:3, rescuedVal=state?state.rescued:0; var depthP2=clamp((state?state.depth_s:0)/3900,0,1), tempC=(15-13*depthP2), salPSU=(30+10*depthP2);
-    var padX=18,padY=18,lh=22; var rows=[ {label:'SCORE',value:String(scoreVal)}, {label:'DEPTH',value:depthVal+' m'}, {label:'RECORD',value:String(highScore)}, {label:'TEMP',value:tempC.toFixed(2)+' °C'}, {label:'SALINITY',value:salPSU.toFixed(1)+' PSU'} ]; var totalRows=rows.length+2; var y0=H-padY-lh*totalRows+6;
-    hud.save(); hud.fillStyle='#ffffff'; hud.font='18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace'; hud.textAlign='left'; hud.textBaseline='alphabetic';
-    var maxLabelW=0; for(var i=0;i<rows.length;i++) maxLabelW=Math.max(maxLabelW, hud.measureText(rows[i].label).width); var gap=16; var valueX=padX+maxLabelW+gap; for(var i=0;i<rows.length;i++){ var y=y0+i*lh; hud.fillText(rows[i].label, padX, y); hud.fillText(rows[i].value, valueX, y); }
-    var livesY=y0+rows.length*lh; hud.fillText('LIVES', padX, livesY); hud.fillStyle='#ff4d4d'; hud.fillText('♥'.repeat(livesVal)+'♡'.repeat(3-livesVal), valueX, livesY); hud.fillStyle='#ffffff'; hud.fillText('SPECIMENS', padX, livesY+lh); hud.fillText(String(rescuedVal), valueX, livesY+lh); var iso=new Date().toISOString(); var utcStr=iso.slice(0,10)+' '+iso.slice(11,19)+' UTC'; hud.textAlign='center'; hud.fillText(utcStr, W/2, H-12); hud.restore();
-  }
+  function drawHUD(){ hud.clearRect(0,0,W,H); const depthVal=Math.floor(state?state.depth_s:0), scoreVal=state?state.score:0, livesVal=state?state.lives:3, rescuedVal=state?state.rescued:0; const depthP2=clamp((state?state.depth_s:0)/3900,0,1), tempC=(15-13*depthP2), salPSU=(30+10*depthP2); const padX=18,padY=18,lh=22; const rows=[{label:'SCORE',value:String(scoreVal)},{label:'DEPTH',value:depthVal+' m'},{label:'RECORD',value:String(highScore)},{label:'TEMP',value:tempC.toFixed(2)+' °C'},{label:'SALINITY',value:salPSU.toFixed(1)+' PSU'}]; const totalRows=rows.length+2; const y0=H-padY-lh*totalRows+6; hud.save(); hud.fillStyle='#ffffff'; hud.font='18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace'; hud.textAlign='left'; hud.textBaseline='alphabetic'; let maxLabelW=0; for(let i=0;i<rows.length;i++) maxLabelW=Math.max(maxLabelW, hud.measureText(rows[i].label).width); const gap=16; const valueX=padX+maxLabelW+gap; for(let i=0;i<rows.length;i++){ const y=y0+i*lh; hud.fillText(rows[i].label, padX, y); hud.fillText(rows[i].value, valueX, y); } const livesY=y0+rows.length*lh; hud.fillText('LIVES', padX, livesY); hud.fillStyle='#ff4d4d'; hud.fillText('♥'.repeat(livesVal)+'♡'.repeat(3-livesVal), valueX, livesY); hud.fillStyle='#ffffff'; hud.fillText('SPECIMENS', padX, livesY+lh); hud.fillText(String(rescuedVal), valueX, livesY+lh); const iso=new Date().toISOString(); const utcStr=iso.slice(0,10)+' '+iso.slice(11,19)+' UTC'; hud.textAlign='center'; hud.fillText(utcStr, W/2, H-12); hud.restore(); }
 
   // ========= Loop =========
-  var last=0; function loop(t){ var dt=Math.min(0.033, (t-last)/1000 || 0); last=t; drawBG(dt); updateParticles(dt); upd(dt); draw(); requestAnimationFrame(loop); }
+  let last=0; function loop(t){ const dt=Math.min(0.033,(t-last)/1000||0); last=t; drawBG(dt); updateParticles(dt); upd(dt); draw(); requestAnimationFrame(loop); }
 
   // ========= Start / End =========
   let __starting=false; function start(){ if(__starting) return; __starting=true; if(state&&state.run){ __starting=false; return; } reset(); keys={}; state.inputLock=0.2; state.run=true; state.spawn=0.01; S.init(); S.stop('music'); S.loop('music'); titleEl.style.display='none'; brandLogo.style.display='block'; finalP.textContent='Captura tantos especímenes del Cañón de Mar del Plata como puedas'; finalStats.style.display='none'; if(mainExtras) mainExtras.style.display='none'; overlay.style.display='none'; overlayMode='menu'; startBtn.style.display='inline'; restartBtn.style.display='none'; refreshIcons(); setTimeout(function(){ __starting=false; },200); }
   function end(){ if(!state) return; state.run=false; S.stop('music'); S.play('gameover'); if(state.score>highScore){ highScore=state.score; saveHighScore(); } brandLogo.style.display='none'; titleEl.style.display='block'; titleEl.textContent='Fin de la expedición'; finalP.textContent='Gracias por ser parte'; statScore.textContent='SCORE: '+state.score; statDepth.textContent='DEPTH: '+state.depth_s+' m'; statSpecimens.textContent='SPECIMENS: '+state.rescued; finalStats.style.display='block'; if(mainExtras) mainExtras.style.display='none'; startBtn.style.display='none'; restartBtn.style.display='inline'; overlayMode='gameover'; overlay.style.display='grid'; }
 
   // ========= Input & Buttons =========
-  var keys={}; addEventListener('keydown', function(e){ keys[e.key]=true; if(e.code==='Space') e.preventDefault(); }); addEventListener('keyup', function(e){ keys[e.key]=false; });
+  addEventListener('keydown', function(e){
+    keys[e.key]=true;
+    if(e.code==='Space') e.preventDefault();
+    if(e.key==='Escape') { e.preventDefault(); openMainMenu(); }
+  });
+  addEventListener('keyup', function(e){ keys[e.key]=false; });
   startBtn.onclick=function(e){ e.stopPropagation(); if(overlayMode==='pause'){ overlay.style.display='none'; if(state){ state.run=true; state.inputLock=0.15; } S.loop('music'); } else { start(); } };
-  restartBtn.onclick=start; document.getElementById('muteBtn').onclick=function(){ S.toggleMuted(); refreshIcons(); };
-  function showMainMenuView(fromPause){ brandLogo.style.display='block'; titleEl.style.display='none'; finalP.textContent='Captura tantos especímenes del Cañón de Mar del Plata como puedas'; finalStats.style.display='none'; recordLine.textContent='RECORD: '+highScore; if(mainExtras) mainExtras.style.display= fromPause ? 'block':'none'; startBtn.textContent= fromPause ? 'Continuar' : 'Sumergirse'; startBtn.style.display='inline'; restartBtn.style.display='none'; overlayMode= fromPause ? 'pause':'menu'; overlay.style.display='grid'; }
+  restartBtn.onclick=start; muteBtn.onclick=function(){ S.toggleMuted(); refreshIcons(); };
+  function showMainMenuView(fromPause){ brandLogo.style.display='block'; titleEl.style.display='none'; finalP.textContent='Captura tantos especímenes del Cañón de Mar del Plata como puedas'; finalStats.style.display='none'; const divider=document.getElementById('menuDivider'); if(divider) divider.style.display='block'; if(mainExtras) mainExtras.style.display= fromPause ? 'block':'none'; setModalButtons(fromPause); startBtn.style.display='inline'; restartBtn.style.display = fromPause ? 'inline' : 'none'; overlayMode= fromPause ? 'pause':'menu'; overlay.style.display='grid'; }
   function openMainMenu(){ if(state){ state.run=false; } S.pause('music'); showMainMenuView(true); }
-  document.getElementById('infoBtn').onclick=openMainMenu;
-  // Use existing wasRunningBeforeCredits (avoid duplicate declaration)
+  infoBtn.onclick=openMainMenu;
   logoHUD.addEventListener('click', function(){ wasRunningBeforeCredits=!!(state&&state.run); if(state){ state.run=false; } S.pause('music'); infoOverlay.style.display='grid'; });
   closeInfo.onclick=function(){ infoOverlay.style.display='none'; if(wasRunningBeforeCredits && overlay.style.display==='none'){ if(state){ state.run=true; } S.loop('music'); } };
   fsBtn.onclick=function(){ toggleFullscreen(); };
-  overlay.addEventListener('click', function(e){ if(e.target===overlay && overlay.style.display!=='none' && restartBtn.style.display==='none'){ if(overlayMode==='pause'){ overlay.style.display='none'; if(state){ state.run=true; state.inputLock=0.15; } S.loop('music'); } else { start(); } } });
-  shareBtn.addEventListener('click', async function(){ var shareData={ title:'Expedición Mardel', text:'Captura tantos especímenes del cañon de Mar del Plata como puedas', url: location.href }; if(navigator.share){ try{ await navigator.share(shareData); }catch(e){} } else if(navigator.clipboard && navigator.clipboard.writeText){ try{ await navigator.clipboard.writeText(shareData.url); alert('Enlace copiado al portapapeles'); }catch(e){ alert(shareData.url); } } else { alert(shareData.url); } });
+  if(shareBtn){
+    shareBtn.onclick = async function(){
+      if(state){ state.run=false; }
+      S.pause('music');
+      try{
+        if(navigator.share){
+          await navigator.share({ title:'Expedición Mardel', text:'Captura tantos especímenes del Cañón de Mar del Plata como puedas', url: location.href });
+        }
+      }catch(_){ }
+    };
+  }
+  overlay.addEventListener('click', function(e){
+    if(e.target===overlay && overlay.style.display!=='none' && restartBtn.style.display==='none'){
+      if(overlayMode==='pause'){
+        overlay.style.display='none';
+        if(state){ state.run=true; state.inputLock=0.15; }
+        S.loop('music');
+      } else {
+        start();
+      }
+    }
+  });
 
-  // ---- Mobile controls (drag left 50%, tap anywhere for hook unless over UI) ----
-  var tStartX=0,tStartY=0,tStartT=0; var touchStartedOverUI=false; var dragId=-1, dragActive=false, dragY=0, dragInZone=false; var TAP_DIST=10, TAP_TIME=300;
+  // ---- Mobile controls ----
+  let tStartX=0,tStartY=0,tStartT=0; let touchStartedOverUI=false; let dragId=-1, dragActive=false, dragY=0, dragInZone=false; const TAP_DIST=10, TAP_TIME=300;
   function inLeftZone(x){ return x < (innerWidth*0.5); }
-  function isOverUI(x,y){ const elts=[document.getElementById('muteBtn'), document.getElementById('infoBtn'), document.getElementById('fsBtn'), overlay, infoOverlay]; for(let i=0;i<elts.length;i++){ const el=elts[i]; if(!el) continue; const style=getComputedStyle(el); if(style.display==='none'||style.visibility==='hidden') continue; const r=el.getBoundingClientRect(); if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom) return true; } return false; }
+  function isOverUI(x,y){
+    const elts=[muteBtn, infoBtn, fsBtn, shareBtn, overlay, infoOverlay];
+    for (const el of elts){
+      if(!el) continue;
+      const style=getComputedStyle(el);
+      if(style.display==='none'||style.visibility==='hidden') continue;
+      const r=el.getBoundingClientRect();
+      if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom) return true;
+    }
+    return false;
+  }
   function simulateTap(){ if(!state||!state.run) return; if(state.inputLock===0){ if(!player.h){ fire(); } else if(player.h.phase==='out'){ player.h.phase='return'; } } }
-  window.addEventListener('touchstart', function(ev){ if(!ev.touches||!ev.touches.length) return; var t=ev.changedTouches[0]; tStartX=t.clientX; tStartY=t.clientY; tStartT=performance.now(); touchStartedOverUI=isOverUI(tStartX,tStartY); if(!touchStartedOverUI && inLeftZone(tStartX)){ dragId=t.identifier; dragActive=true; dragY=t.clientY; dragInZone=true; ev.preventDefault(); } else { dragInZone=false; } }, {passive:false});
-  window.addEventListener('touchmove', function(ev){ if(!dragActive) return; for(var i=0;i<ev.changedTouches.length;i++){ var t=ev.changedTouches[i]; if(t.identifier===dragId){ dragY=t.clientY; if(dragInZone) ev.preventDefault(); break; } } }, {passive:false});
-  window.addEventListener('touchend', function(ev){ var tEnd=performance.now(); var dtTap=tEnd-tStartT; var touch=(ev.changedTouches&&ev.changedTouches[0])||null; var ex=touch?touch.clientX:tStartX; var ey=touch?touch.clientY:tStartY; var adx=Math.abs(ex-tStartX), ady=Math.abs(ey-tStartY); if(!touchStartedOverUI && dtTap<=TAP_TIME && adx<TAP_DIST && ady<TAP_DIST){ simulateTap(); } for(var i=0;i<ev.changedTouches.length;i++){ var t=ev.changedTouches[i]; if(t.identifier===dragId){ dragActive=false; dragId=-1; dragInZone=false; break; } } }, {passive:false});
+  window.addEventListener('touchstart', function(ev){ if(!ev.touches||!ev.touches.length) return; const t=ev.changedTouches[0]; tStartX=t.clientX; tStartY=t.clientY; tStartT=performance.now(); touchStartedOverUI=isOverUI(tStartX,tStartY); if(!touchStartedOverUI && inLeftZone(tStartX)){ dragId=t.identifier; dragActive=true; dragY=t.clientY; dragInZone=true; ev.preventDefault(); } else { dragInZone=false; } }, {passive:false});
+  window.addEventListener('touchmove', function(ev){ if(!dragActive) return; for(let i=0;i<ev.changedTouches.length;i++){ const t=ev.changedTouches[i]; if(t.identifier===dragId){ dragY=t.clientY; if(dragInZone) ev.preventDefault(); break; } } }, {passive:false});
+  window.addEventListener('touchend', function(ev){ const tEnd=performance.now(); const dtTap=tEnd-tStartT; const touch=(ev.changedTouches&&ev.changedTouches[0])||null; const ex=touch?touch.clientX:tStartX; const ey=touch?touch.clientY:tStartY; const adx=Math.abs(ex-tStartX), ady=Math.abs(ey-tStartY); if(!touchStartedOverUI && dtTap<=TAP_TIME && adx<TAP_DIST && ady<TAP_DIST){ simulateTap(); } for(let i=0;i<ev.changedTouches.length;i++){ const t=ev.changedTouches[i]; if(t.identifier===dragId){ dragActive=false; dragId=-1; dragInZone=false; break; } } }, {passive:false});
 
-  // ========= Fullscreen / Immersive =========
+  // ========= Fullscreen / Immersivo =========
   function canUseFullscreen(){ return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.msFullscreenEnabled); }
   let immersive=false; function toggleImmersive(){ immersive=!immersive; document.body.classList.toggle('immersive', immersive); }
   function toggleFullscreen(){ if(!canUseFullscreen()) { toggleImmersive(); return; } const el=document.documentElement; try{ if(!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement){ if(el.requestFullscreen) return el.requestFullscreen(); if(el.webkitRequestFullscreen) return el.webkitRequestFullscreen(); if(el.msRequestFullscreen) return el.msRequestFullscreen(); } else { if(document.exitFullscreen) return document.exitFullscreen(); if(document.webkitExitFullscreen) return document.webkitExitFullscreen(); if(document.msExitFullscreen) return document.msExitFullscreen(); } } catch(err){ console.warn('Fullscreen no disponible, uso modo inmersivo', err); toggleImmersive(); } }
   document.addEventListener('fullscreenchange', ()=>{ refreshIcons(); });
 
   // ========= Size / Init =========
-  function viewportWH(){ var vv=window.visualViewport; return { w:(vv?vv.width:innerWidth), h:(vv?vv.height:innerHeight) }; }
-  function autoSize(){ var v=viewportWH(); [bgCanvas,cvs,fxCanvas,hudCanvas].forEach(c=>{ c.width=v.w; c.height=v.h; c.style.height=v.h+'px'; }); W=v.w; H=v.h; computeLanes(); initParticles(); }
+  function viewportWH(){ const vv=window.visualViewport; return { w:(vv?vv.width:innerWidth), h:(vv?vv.height:innerHeight) }; }
+  function autoSize(){ const v=viewportWH(); [bgCanvas,cvs,fxCanvas,hudCanvas].forEach(c=>{ c.width=v.w; c.height=v.h; c.style.height=v.h+'px'; }); W=v.w; H=v.h; computeLanes(); initParticles(); }
   window.visualViewport && visualViewport.addEventListener('resize', autoSize); autoSize(); addEventListener('resize', autoSize);
   function __resume(){ if(state && state.run){ S.loop('music'); } window.removeEventListener('pointerdown', __resume); window.removeEventListener('keydown', __resume); }
-  reset(); (function(){ try{ requestAnimationFrame(loop); }catch(e){} })(); S.init(); refreshIcons(); window.addEventListener('pointerdown', __resume, { once:true }); window.addEventListener('keydown', __resume, { once:true });
-
+  reset(); try{ requestAnimationFrame(loop); }catch(e){}
+  S.init(); refreshIcons(); window.addEventListener('pointerdown', __resume, { once:true }); window.addEventListener('keydown', __resume, { once:true });
 })();
 </script>
 </body>
