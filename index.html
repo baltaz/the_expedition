@@ -33,12 +33,12 @@
 
     /* Botones de imagen (modales) */
     .imgbtn{ background:transparent; border:0; padding:0; cursor:pointer; }
-    .imgbtn img{ display:block; image-rendering:pixelated; width: min(220px, 58vw); height:auto; margin:3px auto; } /* margen reducido */
+    .imgbtn img{ display:block; image-rendering:pixelated; width: min(220px, 58vw); height:auto; margin:3px auto; }
 
     /* escalado de botones del modal */
     .btn70{ transform:scale(.7); transform-origin:center; display:inline-block; }
     .btn60{ transform:scale(.6); transform-origin:center; display:inline-block; }
-    .btnCol{ display:flex; flex-direction:column; align-items:center; gap:0; } /* sin separación */
+    .btnCol{ display:flex; flex-direction:column; align-items:center; gap:0; }
 
     #infoOverlay { position:fixed; inset:0; background: radial-gradient(ellipse at center, rgba(0,0,0,.75), rgba(0,0,0,.95)); color:#e9f3ff; display:none; place-items:center; text-align:center; z-index: 7; }
     #infoOverlay .card { background:#001830; border:2px solid #7ecbff; box-shadow: inset -6px -6px 0 #003b8e, inset 6px 6px 0 #7ecbff; text-transform: uppercase; letter-spacing:.5px; padding:24px 28px; max-width:520px; }
@@ -87,7 +87,7 @@
       <img id="brandLogo" alt="La Expedición" src="https://raw.githubusercontent.com/baltaz/the_expedition/main/assets/logo.png" style="height:72px; image-rendering:pixelated; display:block; margin:0 auto 10px;"/>
       <h1 id="gameOverTitle" style="display:none;">LA EXPEDICIÓN</h1>
 
-      <p id="final">Captura tantos especímenes del Cañón de Mar del Plata como puedas</p>
+      <p id="final">Captura tantos especímenes<br/>como puedas</p>
 
       <div id="finalStats" style="display:none; font-size:14px; line-height:20px; font-weight:bold;">
         <div id="statScore">SCORE: 0</div>
@@ -106,8 +106,8 @@
       <!-- Extras debajo de la división -->
       <div id="mainExtras" style="display:none; font-size:14px; line-height:20px; margin:12px 0 6px 0;">
         <div>creado por <b>@balta.zr</b></div>
-        <div class="donateWrap" style="margin-top:6px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-          <a id="donateBtn" class="imgbtn btn60" href="https://cafecito.app/soybalta" target="_blank" rel="noopener" style="margin-top:2px;margin-bottom:2px;"></a>
+        <div class="donateWrap" style="margin-top:3px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+          <a id="donateBtn" class="imgbtn btn60" href="https://cafecito.app/soybalta" target="_blank" rel="noopener" style="margin-top:1px;margin-bottom:1px;"></a>
         </div>
       </div>
     </div>
@@ -178,23 +178,15 @@
     "<rect x='2' y='2' width='52' height='52' rx='8' ry='8' fill='url(#g)' stroke='#0b214b' stroke-width='3'/>"+
     "<g transform='translate(28,28)'><path d='M-9,-8 h6 l8,-6 v28 l-8,-6 h-6 z' fill='#0b214b'/><path d='M6,-6 q6,6 0,12' fill='none' stroke='#0b214b' stroke-width='3' stroke-linecap='round'/><path d='M10,-10 q10,10 0,20' fill='none' stroke='#0b214b' stroke-width='3' stroke-linecap='round'/></g></svg>");
   const iconInfo = makeDataUrl("<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#5aa4ff'/><stop offset='1' stop-color='#2b58a6'/></linearGradient></defs><rect x='2' y='2' width='52' height='52' rx='8' ry='8' fill='url(#g)' stroke='#0b214b' stroke-width='3'/><g transform='translate(28,28)'><circle r='10' fill='#0b214b'/><text x='0' y='6' text-anchor='middle' font-family='monospace' font-size='20' fill='#5aa4ff'>?</text></g></svg>");
-  function refreshIcons(){
-    muteBtn.innerHTML='<img alt="mute" src="'+(icoMuteURL||iconSpeakerOn)+'" />';
-    infoBtn.innerHTML='<img alt="info" src="'+(icoInfoURL||iconInfo)+'" />';
-    if(icoFSURL) fsBtn.innerHTML='<img alt="fullscreen" src="'+icoFSURL+'" />';
-    if(shareBtn && icoShareURL) shareBtn.innerHTML='<img alt="share" src="'+icoShareURL+'" />';
-    muteBtn.style.opacity=S.isMuted()?0.35:1;
-  }
+  function refreshIcons(){ muteBtn.innerHTML='<img alt="mute" src="'+(icoMuteURL||iconSpeakerOn)+'" />'; infoBtn.innerHTML='<img alt="info" src="'+(icoInfoURL||iconInfo)+'" />'; if(icoFSURL) fsBtn.innerHTML='<img alt="fullscreen" src="'+icoFSURL+'" />'; if(icoShareURL) shareBtn.innerHTML='<img alt="share" src="'+icoShareURL+'" />'; muteBtn.style.opacity=S.isMuted()?0.35:1; }
   function setModalButtons(fromPause){ if(grayDiveURL){ startBtn.innerHTML='<img alt="'+(fromPause?'Continuar':'Sumergirse')+'" src="'+(fromPause?grayContinueURL:grayDiveURL)+'" />'; } if(grayRetryURL){ restartBtn.innerHTML='<img alt="Reintentar" src="'+grayRetryURL+'" />'; } if(grayExitURL){ closeInfo.innerHTML='<img alt="Salir" src="'+grayExitURL+'" />'; } if(grayDonateURL&&donateBtn){ donateBtn.innerHTML='<img alt="Donar" src="'+grayDonateURL+'" />'; } }
 
   // ========= Audio =========
   const RAW='https://raw.githubusercontent.com/baltaz/the_expedition/main/sfx/';
   const MUSIC='https://raw.githubusercontent.com/baltaz/the_expedition/main/music/the%20expedition.mp3';
   const S=(function(){ let created=false; const a={}; let _muted=false; const srcMap={ fire:RAW+'sfx_fire.mp3', lose:RAW+'sfx_lose.mp3', gameover:RAW+'sfx_gameover.mp3', music:MUSIC };
-    function init(){ if(created) return; created=true; for(const k in srcMap){ const el=new Audio(srcMap[k]); el.preload='auto'; if(k==='music'){ el.loop=true; el.volume=0.35; } else { el.volume=0.7; } a[k]=el; }
-    }
-    function play(k){ const el=a[k]; if(!el) return; try{ el.currentTime=0; el.play(); }catch(e){}
-    }
+    function init(){ if(created) return; created=true; for(const k in srcMap){ const el=new Audio(srcMap[k]); el.preload='auto'; if(k==='music'){ el.loop=true; el.volume=0.35; } else { el.volume=0.7; } a[k]=el; } }
+    function play(k){ const el=a[k]; if(!el) return; try{ el.currentTime=0; el.play(); }catch(e){} }
     function loop(k){ const el=a[k]; if(!el) return; if(el.paused){ try{ el.play(); }catch(e){} } }
     function stop(k){ const el=a[k]; if(!el) return; try{ el.pause(); el.currentTime=0; }catch(e){} }
     function pause(k){ const el=a[k]; if(!el) return; try{ el.pause(); }catch(e){} }
@@ -233,7 +225,7 @@
 
   // ========= State =========
   let state=null, player, animals; let keys={};
-  let overlayMode='menu'; let wasRunningBeforeCredits=false;
+  let overlayMode='menu'; let wasRunningBeforeCredits=false; let wasRunningBeforeShare=false;
   let robotTilt=0, robotTiltTarget=0; const MAX_TILT=Math.PI/36;
   function reset(){ state={ run:false, rescued:0, score:0, depth_s:0, lives:3, lifeAnim:0, spawn:0, speed:260, elapsed:0, inputLock:0.2,
       lightPhase:'off', lightVisible:false, lightTimer:0, lightToggles:0, lastMusicT:0 }; player={ x:0.18, y:0.5, vy:0, r:26, h:null }; animals=[]; computeLanes(); }
@@ -293,7 +285,7 @@
   let last=0; function loop(t){ const dt=Math.min(0.033,(t-last)/1000||0); last=t; drawBG(dt); updateParticles(dt); upd(dt); draw(); requestAnimationFrame(loop); }
 
   // ========= Start / End =========
-  let __starting=false; function start(){ if(__starting) return; __starting=true; if(state&&state.run){ __starting=false; return; } reset(); keys={}; state.inputLock=0.2; state.run=true; state.spawn=0.01; S.init(); S.stop('music'); S.loop('music'); titleEl.style.display='none'; brandLogo.style.display='block'; finalP.textContent='Captura tantos especímenes del Cañón de Mar del Plata como puedas'; finalStats.style.display='none'; if(mainExtras) mainExtras.style.display='none'; overlay.style.display='none'; overlayMode='menu'; startBtn.style.display='inline'; restartBtn.style.display='none'; refreshIcons(); setTimeout(function(){ __starting=false; },200); }
+  let __starting=false; function start(){ if(__starting) return; __starting=true; if(state&&state.run){ __starting=false; return; } reset(); keys={}; state.inputLock=0.2; state.run=true; state.spawn=0.01; S.init(); S.stop('music'); S.loop('music'); titleEl.style.display='none'; brandLogo.style.display='block'; finalP.innerHTML='Captura tantos especímenes<br/>como puedas'; finalStats.style.display='none'; if(mainExtras) mainExtras.style.display='none'; overlay.style.display='none'; overlayMode='menu'; startBtn.style.display='inline'; restartBtn.style.display='none'; refreshIcons(); setTimeout(function(){ __starting=false; },200); }
   function end(){ if(!state) return; state.run=false; S.stop('music'); S.play('gameover'); if(state.score>highScore){ highScore=state.score; saveHighScore(); } brandLogo.style.display='none'; titleEl.style.display='block'; titleEl.textContent='Fin de la expedición'; finalP.textContent='Gracias por ser parte'; statScore.textContent='SCORE: '+state.score; statDepth.textContent='DEPTH: '+state.depth_s+' m'; statSpecimens.textContent='SPECIMENS: '+state.rescued; finalStats.style.display='block'; if(mainExtras) mainExtras.style.display='none'; startBtn.style.display='none'; restartBtn.style.display='inline'; overlayMode='gameover'; overlay.style.display='grid'; }
 
   // ========= Input & Buttons =========
@@ -301,11 +293,10 @@
     keys[e.key]=true;
     if(e.code==='Space') e.preventDefault();
     if(e.key==='Escape') { e.preventDefault(); openMainMenu(); }
-  });
-  addEventListener('keyup', function(e){ keys[e.key]=false; });
+  }); addEventListener('keyup', function(e){ keys[e.key]=false; });
   startBtn.onclick=function(e){ e.stopPropagation(); if(overlayMode==='pause'){ overlay.style.display='none'; if(state){ state.run=true; state.inputLock=0.15; } S.loop('music'); } else { start(); } };
   restartBtn.onclick=start; muteBtn.onclick=function(){ S.toggleMuted(); refreshIcons(); };
-  function showMainMenuView(fromPause){ brandLogo.style.display='block'; titleEl.style.display='none'; finalP.textContent='Captura tantos especímenes del Cañón de Mar del Plata como puedas'; finalStats.style.display='none'; const divider=document.getElementById('menuDivider'); if(divider) divider.style.display='block'; if(mainExtras) mainExtras.style.display= fromPause ? 'block':'none'; setModalButtons(fromPause); startBtn.style.display='inline'; restartBtn.style.display = fromPause ? 'inline' : 'none'; overlayMode= fromPause ? 'pause':'menu'; overlay.style.display='grid'; }
+  function showMainMenuView(fromPause){ brandLogo.style.display='block'; titleEl.style.display='none'; finalP.innerHTML='Captura tantos especímenes<br/>como puedas'; finalStats.style.display='none'; const divider=document.getElementById('menuDivider'); if(divider) divider.style.display='block'; if(mainExtras) mainExtras.style.display= fromPause ? 'block':'none'; setModalButtons(fromPause); startBtn.style.display='inline'; restartBtn.style.display = fromPause ? 'inline' : 'none'; overlayMode= fromPause ? 'pause':'menu'; overlay.style.display='grid'; }
   function openMainMenu(){ if(state){ state.run=false; } S.pause('music'); showMainMenuView(true); }
   infoBtn.onclick=openMainMenu;
   logoHUD.addEventListener('click', function(){ wasRunningBeforeCredits=!!(state&&state.run); if(state){ state.run=false; } S.pause('music'); infoOverlay.style.display='grid'; });
@@ -313,13 +304,20 @@
   fsBtn.onclick=function(){ toggleFullscreen(); };
   if(shareBtn){
     shareBtn.onclick = async function(){
+      wasRunningBeforeShare = !!(state && state.run);
       if(state){ state.run=false; }
       S.pause('music');
       try{
         if(navigator.share){
           await navigator.share({ title:'Expedición Mardel', text:'Captura tantos especímenes del Cañón de Mar del Plata como puedas', url: location.href });
         }
-      }catch(_){ }
+      }catch(_){}
+      finally{
+        if(wasRunningBeforeShare && overlay.style.display==='none'){
+          state.run=true;
+          S.loop('music');
+        }
+      }
     };
   }
   overlay.addEventListener('click', function(e){
